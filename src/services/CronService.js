@@ -142,11 +142,19 @@ class CronService {
 
       // Skip matches whose sources are already cached (nothing to do).
       const todo = [];
+      const PRIORITY_WAIT_SOURCES = ['daddylive'];
       for (const m of live) {
         if (todo.length >= PREWARM_MAX) break;
         let warm = false;
         if (resolveCache) {
-          warm = m.sources.some((s) => resolveCache.get(`${s.source}:${m.id}:${s.id}`));
+          // If a match has priority sources, they MUST all be cached for the match to be considered warm.
+          const prioritySources = m.sources.filter(s => PRIORITY_WAIT_SOURCES.includes(s.source));
+          if (prioritySources.length > 0) {
+            warm = prioritySources.every((s) => resolveCache.get(`${s.source}:${m.id}:${s.id}`));
+          } else {
+            // No priority sources, fallback to checking if any source is cached.
+            warm = m.sources.some((s) => resolveCache.get(`${s.source}:${m.id}:${s.id}`));
+          }
         }
         if (!warm) todo.push(m);
       }

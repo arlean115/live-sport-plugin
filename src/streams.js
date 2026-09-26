@@ -24,7 +24,7 @@ function isEventStreamSource(src) {
 
 function selectSources(matchSources, config) {
   const cleanSources = (matchSources || []).filter(src => !isEventStreamSource(src));
-  const SOURCE_PRIORITY = { admin: 1, echo: 1, golf: 1, delta: 1, 'ppvst': 1, 'daddylive': 2, 'replayzone': 2, 'livetv': 2, 'watchfooty': 2, 'damitv': 3, 'cdnlive': 3, 'streamsports99': 4, 'timstreams': 9, 'streamsports': 13, 'embedindia': 5, 'embedst': 5, 'streamedpk': 5 };
+  const SOURCE_PRIORITY = { admin: 1, echo: 1, golf: 1, delta: 1, 'ppvst': 1, 'daddylive': 1, 'replayzone': 2, 'livetv': 2, 'watchfooty': 2, 'damitv': 3, 'cdnlive': 3, 'streamsports99': 4, 'timstreams': 9, 'streamsports': 13, 'embedindia': 5, 'embedst': 5, 'streamedpk': 5 };
   const sortedSources = [...cleanSources].sort((a, b) => {
     // Unknown sources that are not known fallback providers are likely new
     // Streamed.pk sources - priority 1.5 keeps them near the top.
@@ -655,8 +655,9 @@ async function handleStream(type, id, config) {
   // next request. Previously every source had to settle before anything was
   // returned, so one slow provider (WatchFooty's embed chain: ~56s/variant)
   // stalled the whole response.
-  const SOFT_DEADLINE_MS = Number(process.env.STREAM_SOFT_DEADLINE_MS || 10000);
+  const SOFT_DEADLINE_MS = Number(process.env.STREAM_SOFT_DEADLINE_MS || 6000);
   const HARD_DEADLINE_MS = Number(process.env.STREAM_HARD_DEADLINE_MS || 15000);
+  const PRIORITY_WAIT_SOURCES = ['daddylive'];
 
   const inFlight = [];        // { key, promise } for the fallback wait
   const races = activeSources.map((src) => {
@@ -665,27 +666,34 @@ async function handleStream(type, id, config) {
       .getOrCreate(key, () => mintVerifiedSources(src, match, config, key))
       .then((minted) => (Array.isArray(minted) ? minted.map((st) => ({ ...st, _cacheKey: key })) : []))
       .catch(() => []);
-    inFlight.push({ key, promise });
+    inFlight.push({ key, sourceName: src.source, promise });
     // Wrap so we can tell "settled in time" from "still running".
     return Promise.race([
-      promise.then((value) => ({ late: false, value })),
+      promise.then((value) => ({ late: false, sourceName: src.source, value })),
       new Promise((resolve) =>
-        setTimeout(() => resolve({ late: true, value: [] }), SOFT_DEADLINE_MS)
+        setTimeout(() => resolve({ late: true, sourceName: src.source, value: [] }), SOFT_DEADLINE_MS)
       ),
     ]);
   });
 
   const raced = await Promise.allSettled(races);
   let lateCount = 0;
+  let latePrioritySources = false;
   for (const r of raced) {
     if (r.status !== 'fulfilled') continue;
-    if (r.value.late) { lateCount++; continue; }
+    if (r.value.late) { 
+      lateCount++; 
+      if (PRIORITY_WAIT_SOURCES.includes(r.value.sourceName)) {
+        latePrioritySources = true;
+      }
+      continue; 
+    }
     if (Array.isArray(r.value.value)) streams.push(...r.value.value);
   }
 
   // Never return an empty list merely because we were impatient: if nothing
   // usable arrived in time, wait for the remainder up to the hard ceiling.
-  if (streams.length === 0 && inFlight.length > 0) {
+  if ((streams.length === 0 && inFlight.length > 0) || latePrioritySources) {
     const remaining = Math.max(0, HARD_DEADLINE_MS - SOFT_DEADLINE_MS);
     await Promise.race([
       Promise.allSettled(inFlight.map((f) => f.promise)),
