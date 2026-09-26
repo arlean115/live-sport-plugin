@@ -67,7 +67,7 @@ class DaddyLiveProvider extends BaseProvider {
   constructor(opts = {}) {
     super(opts);
     this.name = 'DaddyLive';
-    this.baseDomains = ['https://dlstreams.st', 'https://dlive.sx'];
+    this.baseDomains = ['https://dlive.sx', 'https://dlstreams.st'];
     this.folders = ['casting', 'stream', 'cast', 'watch', 'player', 'plus'];
     this._decoded = new Map(); // sourceId -> { streams, expiresAt }
 
@@ -98,7 +98,7 @@ class DaddyLiveProvider extends BaseProvider {
               'Accept': 'application/json',
               'Referer': `${base}/`
             },
-            signal: AbortSignal.timeout(12000)
+            signal: AbortSignal.timeout(6000)
           });
           if (res && res.ok) {
             const data = typeof res.json === 'function' ? await res.json() : JSON.parse(res.text);
@@ -142,7 +142,7 @@ class DaddyLiveProvider extends BaseProvider {
               'User-Agent': UA,
               'Referer': `${base}/`
             },
-            signal: AbortSignal.timeout(12000)
+            signal: AbortSignal.timeout(6000)
           });
           if (homeRes && homeRes.ok) {
             const homeHtml = typeof homeRes.text === 'function' ? await homeRes.text() : homeRes.text;
@@ -167,7 +167,7 @@ class DaddyLiveProvider extends BaseProvider {
               'User-Agent': UA,
               'Referer': `${base}/`
             },
-            signal: AbortSignal.timeout(15000)
+            signal: AbortSignal.timeout(6000)
           });
           if (res.ok) {
             if (typeof res.text === 'function') {
