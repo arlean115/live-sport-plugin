@@ -146,7 +146,12 @@ class CronService {
         if (todo.length >= PREWARM_MAX) break;
         let warm = false;
         if (resolveCache) {
-          warm = m.sources.some((s) => resolveCache.get(`${s.source}:${m.id}:${s.id}`));
+          const prioritySources = m.sources.filter(s => ['daddylive', 'ppvst'].includes(s.source));
+          if (prioritySources.length > 0) {
+            warm = prioritySources.every(s => resolveCache.get(`${s.source}:${m.id}:${s.id}`));
+          } else {
+            warm = m.sources.some((s) => resolveCache.get(`${s.source}:${m.id}:${s.id}`));
+          }
         }
         if (!warm) todo.push(m);
       }
