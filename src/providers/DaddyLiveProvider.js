@@ -492,56 +492,60 @@ class DaddyLiveProvider extends BaseProvider {
     if (!html || typeof html !== 'string') return null;
     try {
       const $ = cheerio.load(html);
-      const dayHeader = $('.schedule__dayTitle').first().text().trim();
-      if (!dayHeader) return null;
+      const result = {};
 
-      const result = { [dayHeader]: {} };
+      $('.schedule__day').each((_, dayElem) => {
+        const dayHeader = $(dayElem).find('.schedule__dayTitle').first().text().trim();
+        if (!dayHeader) return;
 
-      $('.schedule__category').each((_, catElem) => {
-        const rawCat = $(catElem).find('.card__meta').first().text().trim();
-        if (!rawCat || rawCat.toLowerCase().includes('big brother')) return;
-        const cleanCat = decodeHtmlEntities(rawCat)
-          .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}]/gu, '')
-          .replace(/\s+/g, ' ')
-          .trim();
+        result[dayHeader] = {};
 
-        const events = [];
-        $(catElem).find('.schedule__event').each((_, evElem) => {
-          const time = $(evElem).find('.schedule__time').text().trim();
-          const rawTitle = $(evElem).find('.schedule__eventTitle').text().trim();
-          if (!rawTitle) return;
+        $(dayElem).find('.schedule__category').each((_, catElem) => {
+          const rawCat = $(catElem).find('.card__meta').first().text().trim();
+          if (!rawCat || rawCat.toLowerCase().includes('big brother')) return;
+          const cleanCat = decodeHtmlEntities(rawCat)
+            .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}]/gu, '')
+            .replace(/\s+/g, ' ')
+            .trim();
 
-          const channels = [];
-          $(evElem).find('.schedule__channels a').each((_, a) => {
-            const idMatch = ($(a).attr('href') || '').match(/id=(\d+)/);
-            if (idMatch && idMatch[1] !== '00') {
-              const chName = $(a).text().trim() || $(a).attr('title') || `Channel ${idMatch[1]}`;
-              if (DaddyLiveProvider.isEventStream(chName)) return;
-              channels.push({
-                channel_id: idMatch[1],
-                channel_name: chName
+          const events = [];
+          $(catElem).find('.schedule__event').each((_, evElem) => {
+            const time = $(evElem).find('.schedule__time').text().trim();
+            const rawTitle = $(evElem).find('.schedule__eventTitle').text().trim();
+            if (!rawTitle) return;
+
+            const channels = [];
+            $(evElem).find('.schedule__channels a').each((_, a) => {
+              const idMatch = ($(a).attr('href') || '').match(/id=(\d+)/);
+              if (idMatch && idMatch[1] !== '00') {
+                const chName = $(a).text().trim() || $(a).attr('title') || `Channel ${idMatch[1]}`;
+                if (DaddyLiveProvider.isEventStream(chName)) return;
+                channels.push({
+                  channel_id: idMatch[1],
+                  channel_name: chName
+                });
+              }
+            });
+
+            if (channels.length > 0) {
+              events.push({
+                time,
+                event: decodeHtmlEntities(rawTitle)
+                  .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}]/gu, '')
+                  .replace(/\s+/g, ' ')
+                  .trim(),
+                channels
               });
             }
           });
 
-          if (channels.length > 0) {
-            events.push({
-              time,
-              event: decodeHtmlEntities(rawTitle)
-                .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}]/gu, '')
-                .replace(/\s+/g, ' ')
-                .trim(),
-              channels
-            });
+          if (events.length > 0) {
+            result[dayHeader][cleanCat] = events;
           }
         });
-
-        if (events.length > 0) {
-          result[dayHeader][cleanCat] = events;
-        }
       });
 
-      return Object.keys(result[dayHeader]).length > 0 ? result : null;
+      return Object.keys(result).length > 0 ? result : null;
     } catch (_) {
       return null;
     }
