@@ -87,15 +87,23 @@ function resolveSyncTimeoutMs() {
   const fixed = parseInt(process.env.DADDYLIVE_SYNC_TIMEOUT_MS, 10);
   if (Number.isFinite(fixed) && fixed > 0) return fixed;
 
+  // 12000 is the value these fetches used before f15846b lowered them to
+  // 6000. Restored rather than replaced: the original budget was known-good,
+  // and 6000 is what made DaddyLive fail first under load.
+  const baseMs = parseInt(process.env.SYNC_TIMEOUT_BASE_MS, 10) || 12000;
   const maxMs = parseInt(process.env.SYNC_TIMEOUT_MAX_MS, 10) || 25000;
+
   let load = 0;
   try {
     const la = os.loadavg();
     load = Array.isArray(la) && Number.isFinite(la[0]) ? la[0] : 0;
   } catch (_) { load = 0; }
 
-  const scaled = Math.round(6000 + Math.max(0, load) * 3000);
-  return Math.max(6000, Math.min(scaled, maxMs));
+  // Add headroom as load rises, because load is exactly what makes these slow.
+  // The floor stays at the restored baseline, so an idle box is never worse
+  // off than the pre-regression behaviour.
+  const scaled = Math.round(baseMs + Math.max(0, load) * 2000);
+  return Math.max(baseMs, Math.min(scaled, maxMs));
 }
 
 class DaddyLiveProvider extends BaseProvider {
