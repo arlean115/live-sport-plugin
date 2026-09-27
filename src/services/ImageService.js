@@ -448,6 +448,9 @@ function matchCardUrl(baseUrl, spec = {}) {
   put('tm', spec.time);
   put('sc', spec.score);
   put('shape', spec.shape);
+  if (Array.from(params.keys()).length > 0) {
+    put('v', '2');
+  }
 
   const qs = params.toString();
   return qs ? `${baseUrl}/img/match?${qs}` : `${baseUrl}/img/match`;

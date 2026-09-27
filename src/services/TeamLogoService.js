@@ -128,7 +128,34 @@ const LEAGUE_EMBLEMS = {
   'european tour': 'https://cdn.jsdelivr.net/gh/tv-logo/tv-logos@main/countries/united-kingdom/sky-sports-golf-uk.png',
   'lpga': 'https://a.espncdn.com/i/teamlogos/leagues/500/lpga.png',
   'liv golf': 'https://cdn.jsdelivr.net/gh/tv-logo/tv-logos@main/countries/united-kingdom/sky-sports-golf-uk.png',
-  'golf': 'https://cdn.jsdelivr.net/gh/tv-logo/tv-logos@main/countries/united-kingdom/sky-sports-golf-uk.png'
+  'golf': 'https://cdn.jsdelivr.net/gh/tv-logo/tv-logos@main/countries/united-kingdom/sky-sports-golf-uk.png',
+
+  // Cricket leagues & tournaments
+  'ipl': 'https://a.espncdn.com/i/leaguelogos/cricket/500/100.png',
+  'indian premier league': 'https://a.espncdn.com/i/leaguelogos/cricket/500/100.png',
+  'bbl': 'https://a.espncdn.com/i/leaguelogos/cricket/500/101.png',
+  'big bash league': 'https://a.espncdn.com/i/leaguelogos/cricket/500/101.png',
+  'psl': 'https://a.espncdn.com/i/leaguelogos/cricket/500/102.png',
+  'pakistan super league': 'https://a.espncdn.com/i/leaguelogos/cricket/500/102.png',
+  'cpl': 'https://a.espncdn.com/i/leaguelogos/cricket/500/103.png',
+  'caribbean premier league': 'https://a.espncdn.com/i/leaguelogos/cricket/500/103.png',
+  'sa20': 'https://a.espncdn.com/i/leaguelogos/cricket/500/104.png',
+  'sri lanka premier league': 'https://a.espncdn.com/i/leaguelogos/cricket/500/105.png',
+  'the hundred': 'https://a.espncdn.com/i/leaguelogos/cricket/500/106.png',
+  'ilt20': 'https://a.espncdn.com/i/leaguelogos/cricket/500/107.png',
+  'international league t20': 'https://a.espncdn.com/i/leaguelogos/cricket/500/107.png',
+  'major league cricket': 'https://a.espncdn.com/i/leaguelogos/cricket/500/108.png',
+  'mlc': 'https://a.espncdn.com/i/leaguelogos/cricket/500/108.png',
+  'icc world cup': 'https://a.espncdn.com/i/leaguelogos/cricket/500/1.png',
+  'icc t20 world cup': 'https://a.espncdn.com/i/leaguelogos/cricket/500/2.png',
+  'icc champions trophy': 'https://a.espncdn.com/i/leaguelogos/cricket/500/3.png',
+  'icc test championship': 'https://a.espncdn.com/i/leaguelogos/cricket/500/4.png',
+  'asia cup': 'https://a.espncdn.com/i/leaguelogos/cricket/500/5.png',
+  't20 blast': 'https://a.espncdn.com/i/leaguelogos/cricket/500/109.png',
+  'vitality blast': 'https://a.espncdn.com/i/leaguelogos/cricket/500/109.png',
+  'county championship': 'https://a.espncdn.com/i/leaguelogos/cricket/500/110.png',
+  'ranji trophy': 'https://a.espncdn.com/i/leaguelogos/cricket/500/111.png',
+  'sheffield shield': 'https://a.espncdn.com/i/leaguelogos/cricket/500/112.png'
 };
 
 // ─── 2. Curated Club Aliases ────────────────────────────────────────────────────
@@ -206,20 +233,194 @@ const TEAM_ALIASES = {
   'al-riyadh': 'Al Riyadh',
   'al-ettifaq': 'Al Ettifaq',
   'bahrain sc': 'Bahrain SC',
-  'bahrain club': 'Bahrain SC'
+  'bahrain club': 'Bahrain SC',
+
+  // Cricket national teams & franchises — major T20 leagues (IPL, BBL, PSL, CPL, SA20, ILT20, The Hundred)
+  'india': 'India',
+  'team india': 'India',
+  'indian cricket team': 'India',
+  'aus': 'Australia',
+  'australia': 'Australia',
+  'aussies': 'Australia',
+  'eng': 'England',
+  'england': 'England',
+  'pak': 'Pakistan',
+  'pakistan': 'Pakistan',
+  'sa': 'South Africa',
+  'south africa': 'South Africa',
+  'proteas': 'South Africa',
+  'nz': 'New Zealand',
+  'new zealand': 'New Zealand',
+  'black caps': 'New Zealand',
+  'wi': 'West Indies',
+  'west indies': 'West Indies',
+  'windies': 'West Indies',
+  'sl': 'Sri Lanka',
+  'sri lanka': 'Sri Lanka',
+  'ban': 'Bangladesh',
+  'bangladesh': 'Bangladesh',
+  'tigers': 'Bangladesh',
+  'afg': 'Afghanistan',
+  'afghanistan': 'Afghanistan',
+  'ire': 'Ireland',
+  'ireland': 'Ireland',
+  'zim': 'Zimbabwe',
+  'zimbabwe': 'Zimbabwe',
+  'ned': 'Netherlands',
+  'netherlands': 'Netherlands',
+  'sco': 'Scotland',
+  'scotland': 'Scotland',
+  'nam': 'Namibia',
+  'namibia': 'Namibia',
+  'oman': 'Oman',
+  'png': 'Papua New Guinea',
+  'papua new guinea': 'Papua New Guinea',
+  'uae': 'United Arab Emirates',
+  'united arab emirates': 'United Arab Emirates',
+  'usa': 'United States',
+  'united states': 'United States',
+  'can': 'Canada',
+  'canada': 'Canada',
+
+  // IPL franchises
+  'mi': 'Mumbai Indians',
+  'mumbai indians': 'Mumbai Indians',
+  'mumbai': 'Mumbai Indians',
+  'csk': 'Chennai Super Kings',
+  'chennai super kings': 'Chennai Super Kings',
+  'chennai': 'Chennai Super Kings',
+  'rcb': 'Royal Challengers Bangalore',
+  'royal challengers bangalore': 'Royal Challengers Bangalore',
+  'royal challengers': 'Royal Challengers Bangalore',
+  'bangalore': 'Royal Challengers Bangalore',
+  'kkr': 'Kolkata Knight Riders',
+  'kolkata knight riders': 'Kolkata Knight Riders',
+  'kolkata': 'Kolkata Knight Riders',
+  'dc': 'Delhi Capitals',
+  'delhi capitals': 'Delhi Capitals',
+  'delhi': 'Delhi Capitals',
+  'pbks': 'Punjab Kings',
+  'punjab kings': 'Punjab Kings',
+  'punjab': 'Punjab Kings',
+  'kxip': 'Punjab Kings',
+  'kings xi punjab': 'Punjab Kings',
+  'rr': 'Rajasthan Royals',
+  'rajasthan royals': 'Rajasthan Royals',
+  'rajasthan': 'Rajasthan Royals',
+  'srh': 'Sunrisers Hyderabad',
+  'sunrisers hyderabad': 'Sunrisers Hyderabad',
+  'sunrisers': 'Sunrisers Hyderabad',
+  'hyderabad': 'Sunrisers Hyderabad',
+  'gt': 'Gujarat Titans',
+  'gujarat titans': 'Gujarat Titans',
+  'gujarat': 'Gujarat Titans',
+  'lsg': 'Lucknow Super Giants',
+  'lucknow super giants': 'Lucknow Super Giants',
+  'lucknow': 'Lucknow Super Giants',
+  'ipl': 'Indian Premier League',
+
+  // BBL teams
+  'scorchers': 'Perth Scorchers',
+  'perth scorchers': 'Perth Scorchers',
+  'strikers': 'Adelaide Strikers',
+  'adelaide strikers': 'Adelaide Strikers',
+  'hurricanes': 'Hobart Hurricanes',
+  'hobart hurricanes': 'Hobart Hurricanes',
+  'renegades': 'Melbourne Renegades',
+  'melbourne renegades': 'Melbourne Renegades',
+  'stars': 'Melbourne Stars',
+  'melbourne stars': 'Melbourne Stars',
+  'thunder': 'Sydney Thunder',
+  'sydney thunder': 'Sydney Thunder',
+  'sixers': 'Sydney Sixers',
+  'sydney sixers': 'Sydney Sixers',
+  'heat': 'Brisbane Heat',
+  'brisbane heat': 'Brisbane Heat',
+
+  // PSL teams
+  'karachi kings': 'Karachi Kings',
+  'lahore qalandars': 'Lahore Qalandars',
+  'islamabad united': 'Islamabad United',
+  'peshawar zalmi': 'Peshawar Zalmi',
+  'quetta gladiators': 'Quetta Gladiators',
+  'multan sultans': 'Multan Sultans',
+
+  // CPL teams
+  'trinbago knight riders': 'Trinbago Knight Riders',
+  'tkr': 'Trinbago Knight Riders',
+  'guyana amazon warriors': 'Guyana Amazon Warriors',
+  'st lucia kings': 'Saint Lucia Kings',
+  'jamaica tallawahs': 'Jamaica Tallawahs',
+  'barbados royals': 'Barbados Royals',
+  'st kitts & nevis patriots': 'St Kitts & Nevis Patriots',
+
+  // SA20 teams
+  'mi cape town': 'MI Cape Town',
+  'cape town': 'MI Cape Town',
+  'paarl royals': 'Paarl Royals',
+  'joburg super kings': 'Joburg Super Kings',
+  'durban super giants': 'Durban Super Giants',
+  'pretoria capitals': 'Pretoria Capitals',
+  'sunrisers eastern cape': 'Sunrisers Eastern Cape',
+
+  // ILT20 teams
+  'dubai capitals': 'Dubai Capitals',
+  'abu dhabi knight riders': 'Abu Dhabi Knight Riders',
+  'sharjah warriors': 'Sharjah Warriors',
+  'desert viper': 'Desert Vipers',
+  'desert vipers': 'Desert Vipers',
+  'gulf giants': 'Gulf Giants',
+
+  // The Hundred teams
+  'oval invincibles': 'Oval Invincibles',
+  'southern brave': 'Southern Brave',
+  'manchester originals': 'Manchester Originals',
+  'northern superchargers': 'Northern Superchargers',
+  'birmingham phoenix': 'Birmingham Phoenix',
+  'trent rockets': 'Trent Rockets',
+  'welsh fire': 'Welsh Fire',
+  'london spirit': 'London Spirit'
 };
 
 // ─── 3. Instant Curated Top Badges ──────────────────────────────────────────────
 const CURATED_BADGES = {
+  // Premier League & Major European Clubs
   'arsenal': 'https://r2.thesportsdb.com/images/media/team/badge/uyhbfe1612467038.png',
+  'aston villa': 'https://r2.thesportsdb.com/images/media/team/badge/f8373b1716960533.png',
+  'bournemouth': 'https://r2.thesportsdb.com/images/media/team/badge/y08nak1534071116.png',
+  'afc bournemouth': 'https://r2.thesportsdb.com/images/media/team/badge/y08nak1534071116.png',
+  'brentford': 'https://r2.thesportsdb.com/images/media/team/badge/k84q5f1618386125.png',
+  'brighton': 'https://r2.thesportsdb.com/images/media/team/badge/7aoml31716960458.png',
+  'brighton & hove albion': 'https://r2.thesportsdb.com/images/media/team/badge/7aoml31716960458.png',
   'chelsea': 'https://r2.thesportsdb.com/images/media/team/badge/yvwvtu1448813215.png',
+  'crystal palace': 'https://r2.thesportsdb.com/images/media/team/badge/8z346p1716960555.png',
+  'everton': 'https://r2.thesportsdb.com/images/media/team/badge/eqayrf1523184794.png',
+  'fulham': 'https://r2.thesportsdb.com/images/media/team/badge/xwwvyt1448811086.png',
+  'ipswich': 'https://r2.thesportsdb.com/images/media/team/badge/8z906k1716960578.png',
+  'ipswich town': 'https://r2.thesportsdb.com/images/media/team/badge/8z906k1716960578.png',
+  'leicester city': 'https://r2.thesportsdb.com/images/media/team/badge/1w7u6x1561882650.png',
   'liverpool': 'https://r2.thesportsdb.com/images/media/team/badge/kfaher1737969724.png',
   'manchester city': 'https://r2.thesportsdb.com/images/media/team/badge/vwpvry1467462651.png',
   'manchester united': 'https://r2.thesportsdb.com/images/media/team/badge/xzqdr11517660252.png',
+  'newcastle': 'https://r2.thesportsdb.com/images/media/team/badge/65yvdq1716960481.png',
+  'newcastle united': 'https://r2.thesportsdb.com/images/media/team/badge/65yvdq1716960481.png',
+  'nottingham forest': 'https://r2.thesportsdb.com/images/media/team/badge/8514i01654005832.png',
+  'southampton': 'https://r2.thesportsdb.com/images/media/team/badge/7bvxk71716960599.png',
   'tottenham hotspur': 'https://r2.thesportsdb.com/images/media/team/badge/dfyfhl1604094109.png',
+  'west ham': 'https://r2.thesportsdb.com/images/media/team/badge/hfum4l1599931799.png',
+  'west ham united': 'https://r2.thesportsdb.com/images/media/team/badge/hfum4l1599931799.png',
+  'wolves': 'https://r2.thesportsdb.com/images/media/team/badge/2e87901716960506.png',
+  'wolverhampton wanderers': 'https://r2.thesportsdb.com/images/media/team/badge/2e87901716960506.png',
+
+  // Spain & Europe
   'barcelona': 'https://r2.thesportsdb.com/images/media/team/badge/wq9sir1639406443.png',
   'real madrid': 'https://r2.thesportsdb.com/images/media/team/badge/vwvwrw1473502969.png',
   'atletico madrid': 'https://r2.thesportsdb.com/images/media/team/badge/0ulh3q1719984315.png',
+  'real valladolid': 'https://r2.thesportsdb.com/images/media/team/badge/bnhu8b1719983736.png',
+  'valladolid': 'https://r2.thesportsdb.com/images/media/team/badge/bnhu8b1719983736.png',
+  'cordoba': 'https://r2.thesportsdb.com/images/media/team/badge/ttyyvy1473503827.png',
+  'córdoba': 'https://r2.thesportsdb.com/images/media/team/badge/ttyyvy1473503827.png',
+  'cordoba cf': 'https://r2.thesportsdb.com/images/media/team/badge/ttyyvy1473503827.png',
   'bayern munich': 'https://r2.thesportsdb.com/images/media/team/badge/01ogkh1716960412.png',
   'borussia dortmund': 'https://r2.thesportsdb.com/images/media/team/badge/tqo8ge1716960353.png',
   'paris saint germain': 'https://r2.thesportsdb.com/images/media/team/badge/rwqrrq1473504808.png',
@@ -229,13 +430,59 @@ const CURATED_BADGES = {
   'los angeles lakers': 'https://r2.thesportsdb.com/images/media/team/badge/d8uoxw1714254511.png',
   'golden state warriors': 'https://r2.thesportsdb.com/images/media/team/badge/xokycb1778197905.png',
   'boston celtics': 'https://r2.thesportsdb.com/images/media/team/badge/4j85bn1667936589.png',
+  'dubai': 'https://r2.thesportsdb.com/images/media/team/badge/f95loc1721480695.png',
+  'dubai basketball': 'https://r2.thesportsdb.com/images/media/team/badge/f95loc1721480695.png',
+  'vienna basket': 'https://r2.thesportsdb.com/images/media/team/badge/okeyil1784571631.png',
+  'vienna': 'https://r2.thesportsdb.com/images/media/team/badge/okeyil1784571631.png',
+  'bc vienna': 'https://r2.thesportsdb.com/images/media/team/badge/okeyil1784571631.png',
   'kansas city chiefs': 'https://r2.thesportsdb.com/images/media/team/badge/n58gp51784720929.png',
   'ferrari': 'https://r2.thesportsdb.com/images/media/team/badge/fk5myv1561490584.png',
   'red bull racing': 'https://r2.thesportsdb.com/images/media/team/badge/si5qxc1733228232.png',
   'mercedes amg': 'https://r2.thesportsdb.com/images/media/team/badge/96kai71734120813.png',
   'mclaren': 'https://r2.thesportsdb.com/images/media/team/badge/5k3mwe1749225165.png',
   'radomlje': 'https://r2.thesportsdb.com/images/media/team/badge/gh0sjd1625755749.png',
-  'bravo': 'https://r2.thesportsdb.com/images/media/team/badge/szjnx81579812986.png'
+  'bravo': 'https://r2.thesportsdb.com/images/media/team/badge/szjnx81579812986.png',
+
+  // Cricket national teams (Official ESPN 500x500 badges)
+  'england': 'https://a.espncdn.com/i/teamlogos/cricket/500/1.png',
+  'australia': 'https://a.espncdn.com/i/teamlogos/cricket/500/2.png',
+  'south africa': 'https://a.espncdn.com/i/teamlogos/cricket/500/3.png',
+  'west indies': 'https://a.espncdn.com/i/teamlogos/cricket/500/4.png',
+  'new zealand': 'https://a.espncdn.com/i/teamlogos/cricket/500/5.png',
+  'india': 'https://a.espncdn.com/i/teamlogos/cricket/500/6.png',
+  'pakistan': 'https://a.espncdn.com/i/teamlogos/cricket/500/7.png',
+  'sri lanka': 'https://a.espncdn.com/i/teamlogos/cricket/500/8.png',
+  'zimbabwe': 'https://a.espncdn.com/i/teamlogos/cricket/500/9.png',
+  'united states': 'https://a.espncdn.com/i/teamlogos/cricket/500/11.png',
+  'usa': 'https://a.espncdn.com/i/teamlogos/cricket/500/11.png',
+  'netherlands': 'https://a.espncdn.com/i/teamlogos/cricket/500/15.png',
+  'canada': 'https://a.espncdn.com/i/teamlogos/cricket/500/17.png',
+  'papua new guinea': 'https://a.espncdn.com/i/teamlogos/cricket/500/20.png',
+  'bangladesh': 'https://a.espncdn.com/i/teamlogos/cricket/500/25.png',
+  'united arab emirates': 'https://a.espncdn.com/i/teamlogos/cricket/500/27.png',
+  'uae': 'https://a.espncdn.com/i/teamlogos/cricket/500/27.png',
+  'namibia': 'https://a.espncdn.com/i/teamlogos/cricket/500/28.png',
+  'ireland': 'https://a.espncdn.com/i/teamlogos/cricket/500/29.png',
+  'scotland': 'https://a.espncdn.com/i/teamlogos/cricket/500/30.png',
+  'afghanistan': 'https://a.espncdn.com/i/teamlogos/cricket/500/40.png',
+
+  // Major T20 Cricket Franchises (IPL, BBL, PSL)
+  'mumbai indians': 'https://r2.thesportsdb.com/images/media/team/badge/l40j8p1487678631.png',
+  'chennai super kings': 'https://r2.thesportsdb.com/images/media/team/badge/okceh51487601098.png',
+  'royal challengers bangalore': 'https://r2.thesportsdb.com/images/media/team/badge/kynj5v1588331757.png',
+  'kolkata knight riders': 'https://r2.thesportsdb.com/images/media/team/badge/ows99r1487678296.png',
+  'delhi capitals': 'https://r2.thesportsdb.com/images/media/team/badge/dg4g0z1587334054.png',
+  'rajasthan royals': 'https://r2.thesportsdb.com/images/media/team/badge/lehnfw1487601864.png',
+  'punjab kings': 'https://r2.thesportsdb.com/images/media/team/badge/r1tcie1630697821.png',
+  'sunrisers hyderabad': 'https://r2.thesportsdb.com/images/media/team/badge/sc7m161487419327.png',
+  'gujarat titans': 'https://r2.thesportsdb.com/images/media/team/badge/6qw4r71654174508.png',
+  'lucknow super giants': 'https://r2.thesportsdb.com/images/media/team/badge/4tzmfa1647445839.png',
+  'perth scorchers': 'https://r2.thesportsdb.com/images/media/team/badge/ithlp51546681732.png',
+  'sydney sixers': 'https://r2.thesportsdb.com/images/media/team/badge/jtkm601492607206.png',
+  'melbourne stars': 'https://r2.thesportsdb.com/images/media/team/badge/l0t7v31715269757.png',
+  'lahore qalandars': 'https://r2.thesportsdb.com/images/media/team/badge/hvrtrg1709123519.png',
+  'karachi kings': 'https://r2.thesportsdb.com/images/media/team/badge/tfuvu11709123541.png',
+  'islamabad united': 'https://r2.thesportsdb.com/images/media/team/badge/5bi3eb1709123559.png'
 };
 
 class TeamLogoService {
@@ -281,8 +528,13 @@ class TeamLogoService {
   _cleanName(name) {
     if (!name || typeof name !== 'string') return '';
     return name
-      .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}]/gu, '')
-      .replace(/\b(fc|cf|sc|cd|ca|afc|fk|sk|bk|rsc|vfb|tsv|united|city)\b/gi, ' ')
+      // Strip all emojis, flags, regional indicator symbols, tag characters, black flag
+      .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{E0020}-\u{E007F}\u{1F3F4}]/gu, '')
+      // Fold diacritics / accents (e.g. Córdoba -> Cordoba, Atlético -> Atletico, München -> Munchen)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      // Strip club type affixes (keep 'united' and 'city' so Manchester United/City aren't mangled!)
+      .replace(/\b(fc|cf|sc|cd|ca|afc|fk|sk|bk|rsc|vfb|tsv|basket|baskets|bc)\b/gi, ' ')
       .replace(/[^a-zA-Z0-9\s]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
@@ -290,7 +542,12 @@ class TeamLogoService {
 
   _normalizeKey(name) {
     if (!name) return '';
-    return String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+    return String(name)
+      .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{E0020}-\u{E007F}\u{1F3F4}]/gu, '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
   }
 
   /**
@@ -299,21 +556,35 @@ class TeamLogoService {
   getCachedLogo(teamName) {
     if (!teamName) return null;
     const rawLower = String(teamName).toLowerCase().trim();
+    // Strip emojis (including Unicode flags, tag sequences, symbols) while preserving words & spaces
+    const cleanLower = rawLower
+      .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{E0020}-\u{E007F}\u{1F3F4}]/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim();
     const key = this._normalizeKey(teamName);
+    const cleanKey = cleanLower ? this._normalizeKey(cleanLower) : key;
 
-    // 1. Direct Curated Badges
+    // 1. Direct Curated Badges (raw, emoji-stripped, or diacritic-folded)
     if (CURATED_BADGES[rawLower]) return CURATED_BADGES[rawLower];
+    if (cleanLower && CURATED_BADGES[cleanLower]) return CURATED_BADGES[cleanLower];
+    const foldedLower = cleanLower ? cleanLower.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : null;
+    if (foldedLower && CURATED_BADGES[foldedLower]) return CURATED_BADGES[foldedLower];
 
-    // 2. Alias mapping
-    if (TEAM_ALIASES[rawLower] && CURATED_BADGES[TEAM_ALIASES[rawLower].toLowerCase()]) {
-      return CURATED_BADGES[TEAM_ALIASES[rawLower].toLowerCase()];
+    // 2. Alias mapping (try raw, emoji-stripped, folded, and normalized key)
+    const aliasTarget = TEAM_ALIASES[rawLower] || (cleanLower && TEAM_ALIASES[cleanLower]) || (foldedLower && TEAM_ALIASES[foldedLower]) || TEAM_ALIASES[key] || TEAM_ALIASES[cleanKey];
+    if (aliasTarget) {
+      const aliasLower = aliasTarget.toLowerCase();
+      const aliasFolded = aliasLower.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (CURATED_BADGES[aliasLower]) return CURATED_BADGES[aliasLower];
+      if (CURATED_BADGES[aliasFolded]) return CURATED_BADGES[aliasFolded];
     }
 
     // 3. Memory cache
-    const cached = this.cache.get(key);
+    const cached = this.cache.get(key) || (cleanKey !== key ? this.cache.get(cleanKey) : null);
     if (cached) {
       if (cached.expiresAt > Date.now()) return cached.url || null;
       this.cache.delete(key);
+      if (cleanKey !== key) this.cache.delete(cleanKey);
     }
 
     return null;
@@ -359,6 +630,9 @@ class TeamLogoService {
     }
     if (cat === 'golf') {
       return LEAGUE_EMBLEMS['golf'];
+    }
+    if (cat === 'cricket') {
+      return LEAGUE_EMBLEMS['ipl'];
     }
 
     return null;

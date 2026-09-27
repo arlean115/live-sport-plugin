@@ -345,9 +345,18 @@ function mapMatchToMetaPreview(match, config = {}, reqType = 'tv') {
   const color = categoryColors[match.category] || '333333';
 
   // Competitor names, filled from the title when the provider omitted them.
+  const cleanTeamName = (name) => {
+    if (!name || typeof name !== 'string') return '';
+    return name
+      .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{E0020}-\u{E007F}\u{1F3F4}]/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
   const derivedTeams = extractTeamsFromTitle(match.title);
-  const team1Name = (match.team1 && match.team1.name) || (derivedTeams ? derivedTeams[0] : null);
-  const team2Name = (match.team2 && match.team2.name) || (derivedTeams ? derivedTeams[1] : null);
+  const rawTeam1 = (match.team1 && match.team1.name) || (derivedTeams ? derivedTeams[0] : null);
+  const rawTeam2 = (match.team2 && match.team2.name) || (derivedTeams ? derivedTeams[1] : null);
+  const team1Name = cleanTeamName(rawTeam1) || rawTeam1;
+  const team2Name = cleanTeamName(rawTeam2) || rawTeam2;
 
   // Channel logos come from the unified ChannelLogoService (tv-logos CDN + Wikimedia).
 
@@ -380,7 +389,7 @@ function mapMatchToMetaPreview(match, config = {}, reqType = 'tv') {
   // ─── TIER 1: Provider's Own Artwork (Highest Priority) ───
   const providerPoster = match.poster ? normalizeImageUrl(match.poster) : null;
   const providerLogo = match.logo ? normalizeImageUrl(match.logo) : null;
-  const providerThumb = match.thumbnail_url ? normalizeImageUrl(match.thumbnail_url) : null;
+  let providerThumb = match.thumbnail_url ? normalizeImageUrl(match.thumbnail_url) : null;
   const providerTeamLogo = match.team1 && match.team1.logo ? normalizeImageUrl(match.team1.logo) : null;
   const providerTeamLogo2 = match.team2 && match.team2.logo ? normalizeImageUrl(match.team2.logo) : null;
 
@@ -391,8 +400,24 @@ function mapMatchToMetaPreview(match, config = {}, reqType = 'tv') {
   let broadcasterLogo = null;
   let broadcasterName = null;
 
-  const needsLogo = !providerLogo && !providerTeamLogo && !providerThumb;
-  const needsPoster = !providerPoster && !providerThumb;
+  // ─── Upgrade low-quality provider thumbnails to hi-res channel logos ───
+  // Providers often emit generic /thumbnails/..._Willow tiles. If we have a
+  // high-res logo from ChannelLogoService for the same channel, prefer it.
+  const CHANNEL_THUMBNAIL_MAP = [
+    { rx: /\/thumbnails\/cricket_[a-f0-9-]+_willow/i, channel: 'willow' },
+    { rx: /\/thumbnails\/cricket_[a-f0-9-]+_sky.?cricket/i, channel: 'sky sports cricket' },
+    { rx: /\/thumbnails\/cricket_[a-f0-9-]+_fox.?cricket/i, channel: 'fox cricket' },
+    { rx: /\/thumbnails\/cricket_[a-f0-9-]+_astro.?cricket/i, channel: 'astro cricket' },
+    { rx: /\/thumbnails\/cricket_[a-f0-9-]+_supersport.?cricket/i, channel: 'supersport cricket' },
+    { rx: /\/thumbnails\/cricket_[a-f0-9-]+_star.?sports/i, channel: 'star sports' },
+    { rx: /\/thumbnails\/cricket_[a-f0-9-]+_sony.?sports/i, channel: 'sony sports' },
+  ];
+  const matchedChannelThumb = providerThumb ? CHANNEL_THUMBNAIL_MAP.find(m => m.rx.test(providerThumb)) : null;
+  const isChannelThumbnail = !!matchedChannelThumb;
+  const isMatchup = !!(team1Name && team2Name);
+
+  const needsLogo = !providerLogo && !providerTeamLogo && (!providerThumb || isChannelThumbnail || isMatchup);
+  const needsPoster = !providerPoster && (!providerThumb || isChannelThumbnail || isMatchup);
 
   // A provider thumbnail that is really a crest/icon (rather than landscape
   // artwork) cannot serve as a poster; it only suits the embedded single-crest
@@ -406,7 +431,7 @@ function mapMatchToMetaPreview(match, config = {}, reqType = 'tv') {
   // card instead of being stretched across a 16:9 slot.
   const thumbMeta = providerThumb ? imageService.getCachedMeta(providerThumb) : null;
   const thumbIsLandscape = thumbMeta ? (thumbMeta.width / thumbMeta.height) >= 1.2 : null;
-  const isThumbLogo = !!providerThumb && (
+  let isThumbLogo = !!providerThumb && (
     match.category === 'networks' ||
     (thumbIsLandscape === null
       ? (providerThumb.toLowerCase().includes('logo') || providerThumb.toLowerCase().includes('icon'))
@@ -455,19 +480,32 @@ function mapMatchToMetaPreview(match, config = {}, reqType = 'tv') {
   // Channel logo for 24/7 channels where title IS the channel name
   const channelLogo = getChannelLogo(match.title);
 
+  if (matchedChannelThumb) {
+    const upgradeLogo = broadcasterLogo || channelLogo || getChannelLogo(matchedChannelThumb.channel);
+    if (upgradeLogo) {
+      broadcasterLogo = upgradeLogo;
+      if (!broadcasterName) broadcasterName = matchedChannelThumb.channel;
+      providerThumb = upgradeLogo;
+      isThumbLogo = false; // it's a proper logo, not a landscape artwork
+    }
+  }
+
   // ─── Resolve Effective Poster ───
   // Precedence: PROVIDER artwork wins outright. Anything the provider gives us
   // (poster, thumbnail, logo) is used as-is. Only when the provider supplies no
   // artwork at all do we fall back to the composed cinematic card — and our own
   // crest/league/channel lookups are fed INTO that card as ingredients rather
   // than pre-empting it with a lone crest on an empty background.
+  // Note: For matchups, a generic channel thumbnail (e.g. Willow/Sky tile) is
+  // NOT match artwork — it is a broadcaster badge, so we compose the rich match
+  // card with the team crests and show the channel logo in the corner.
   let poster;
 
   if (providerPoster) {
     poster = buildImg(providerPoster, posterText, color) || fallbackPoster;
-  } else if (providerThumb) {
+  } else if (providerThumb && !isMatchup && !isChannelThumbnail) {
     poster = buildImg(providerThumb, posterText, color, isThumbLogo) || fallbackPoster;
-  } else if (providerLogo) {
+  } else if (providerLogo && !isMatchup) {
     poster = buildImg(providerLogo, posterText, color, true) || fallbackPoster;
   } else {
     // No provider artwork at all (typical for 24/7 networks from CdnLive and
@@ -558,6 +596,21 @@ function mapMatchToMetaPreview(match, config = {}, reqType = 'tv') {
   }
 
   const is247 = !isReplay && (match.category === 'networks' || !match.date || match.date === '0');
+
+  // ─── Enrich team logos via TeamLogoService (cricket, football, etc.) ───
+  let teamLogoService = null;
+  try { teamLogoService = container.resolve('teamLogoService'); } catch (_) {}
+  if (teamLogoService && team1Name) {
+    const existingLogo = match.team1 && match.team1.logo;
+    const logo1 = existingLogo || teamLogoService.getCachedLogo(team1Name);
+    match.team1 = { ...(match.team1 || {}), name: team1Name, logo: logo1 || null };
+  }
+  if (teamLogoService && team2Name) {
+    const existingLogo = match.team2 && match.team2.logo;
+    const logo2 = existingLogo || teamLogoService.getCachedLogo(team2Name);
+    match.team2 = { ...(match.team2 || {}), name: team2Name, logo: logo2 || null };
+  }
+
   // Providers only supply a score for a fixture that is under way or finished.
   const scoreSuffix = match.score ? ` (${match.score})` : '';
   const prefix = isReplay ? '⏪ ' : (isLive ? (is247 ? '📺 ' : '🔴 LIVE: ') : '⏱️ ');
@@ -589,6 +642,9 @@ function mapMatchToMetaPreview(match, config = {}, reqType = 'tv') {
     releaseInfo: isReplay ? replayReleaseInfo : (isLive ? (is247 ? '24/7' : 'LIVE') : timeString),
     description: desc,
     cast: cast,
+    // Include team1/team2 with logos for Stremio/Nuvio client-side rendering
+    team1: team1Name ? { name: team1Name, logo: (match.team1 && match.team1.logo) || null } : null,
+    team2: team2Name ? { name: team2Name, logo: (match.team2 && match.team2.logo) || null } : null,
     behaviorHints: {
       defaultVideoId: isSeriesReplay ? `nuvio_sport_${match.id}:1:1` : `nuvio_sport_${match.id}`
     }

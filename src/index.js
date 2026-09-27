@@ -265,7 +265,7 @@ const IMAGE_SVG_BUDGET_BYTES = 100 * 1024;
 async function sendRasterizedIfPossible(res, svg) {
   try {
     const sharp = require('sharp');
-    const pngBuffer = await sharp(Buffer.from(svg)).png().toBuffer();
+    const pngBuffer = await sharp(Buffer.from(svg)).png({ compressionLevel: 9, effort: 7 }).toBuffer();
     res.setHeader('Content-Type', 'image/png');
     res.send(pngBuffer);
   } catch (err) {
@@ -428,18 +428,26 @@ app.get(['/img/match', '/:config/img/match'], async (req, res) => {
   const LOGO_BY_NAME = new Map();
   const LOGO_BY_NAME_MAX = 2000;
   const resolveNameToCrest = async (name) => {
-    const key = qs(name);
-    if (!key) return null;
+    const raw = qs(name);
+    if (!raw) return null;
+    const cleanKey = raw
+      .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{E0020}-\u{E007F}\u{1F3F4}]/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const key = cleanKey || raw;
     if (LOGO_BY_NAME.has(key)) return LOGO_BY_NAME.get(key);
     let url = null;
     try {
       const teamLogoService = container.resolve('teamLogoService');
       url = teamLogoService.getCachedLogo(key);
+      if (!url && key !== raw) url = teamLogoService.getCachedLogo(raw);
       if (!url) url = await teamLogoService.findTeamLogo(key);
+      if (!url && key !== raw) url = await teamLogoService.findTeamLogo(raw);
     } catch (_) { url = null; }
     if (url) {
       if (LOGO_BY_NAME.size >= LOGO_BY_NAME_MAX) LOGO_BY_NAME.clear();
       LOGO_BY_NAME.set(key, url);
+      if (raw !== key) LOGO_BY_NAME.set(raw, url);
     }
     return url;
   };
@@ -524,12 +532,12 @@ app.get(['/img/match', '/:config/img/match'], async (req, res) => {
   // written into both href and xlink:href). Measuring the SVG stripped the crests
   // off cards that would have been delivered well inside budget - which is exactly
   // how replay cards lost their logos while the guard was in place.
-  const CARD_BUDGET_BYTES = 96 * 1024;
+  const CARD_BUDGET_BYTES = 256 * 1024;
 
   const rasterize = async (svgText) => {
     try {
       const sharp = require('sharp');
-      return await sharp(Buffer.from(svgText)).png().toBuffer();
+      return await sharp(Buffer.from(svgText)).png({ compressionLevel: 9, effort: 7 }).toBuffer();
     } catch (_) {
       return null;
     }

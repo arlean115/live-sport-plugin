@@ -44,6 +44,10 @@ const CHANNEL_LOGOS = {
   "fox cricket": `${CDN_BASE}/countries/australia/fox-sports-cricket-501-au.png`,
   "sky sports cricket": `${CDN_BASE}/countries/united-kingdom/sky-sports-cricket-uk.png`,
   "astro cricket": `${CDN_BASE}/countries/malaysia/astro-cricket-my.png`,
+  "supersport cricket": `${CDN_BASE}/countries/south-africa/supersport-za.png`,
+  "star sports": `${CDN_BASE}/countries/india/star-sports-1-in.png`,
+  "sony sports": `${CDN_BASE}/countries/india/sony-ten-1-in.png`,
+  "sony ten": `${CDN_BASE}/countries/india/sony-ten-1-in.png`,
 
   // --- Sky Sports Suite (UK) ---
   "sky sports main event": `${CDN_BASE}/countries/united-kingdom/sky-sports-main-event-uk.png`,

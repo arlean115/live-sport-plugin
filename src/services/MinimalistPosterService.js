@@ -114,20 +114,23 @@ const SPORT_CONFIGS = {
   },
   cricket: {
     title: 'CRICKET',
-    badge: 'MATCH ARCHIVE',
+    badge: 'LIVE MATCHES',
     accent: '#14b8a6', // teal
     bgTop: '#0b1917',
     bgBottom: '#07100f',
     glow: 'rgba(20, 184, 166, 0.18)',
     icon: (w, h, cx, cy) => `
-      <!-- Minimalist Cricket Bat & Ball -->
-      <g transform="translate(${cx - 34}, ${cy - 34})" stroke="#f8fafc" stroke-width="2.5" fill="none" stroke-linecap="round">
-        <!-- Bat -->
-        <rect x="18" y="24" width="16" height="38" rx="3" transform="rotate(-35 26 43)" stroke="#f8fafc" fill="rgba(20, 184, 166, 0.2)"/>
-        <line x1="36" y1="20" x2="52" y2="6" stroke="#14b8a6" stroke-width="3"/>
-        <!-- Ball -->
-        <circle cx="48" cy="46" r="10" stroke="#ef4444" stroke-width="2" fill="rgba(239, 68, 68, 0.3)"/>
-        <line x1="42" y1="46" x2="54" y2="46" stroke="#f8fafc" stroke-width="1.5"/>
+      <!-- Minimalist Cricket Stumps & Bails (iconic, recognizable at thumbnail size) -->
+      <g transform="translate(${cx - 30}, ${cy - 28})" stroke="#f8fafc" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <!-- Three stumps -->
+        <line x1="10" y1="56" x2="10" y2="12"/>
+        <line x1="30" y1="56" x2="30" y2="12"/>
+        <line x1="50" y1="56" x2="50" y2="12"/>
+        <!-- Two bails (amber accent) -->
+        <line x1="6" y1="12" x2="34" y2="12" stroke="#f59e0b" stroke-width="3"/>
+        <line x1="26" y1="12" x2="54" y2="12" stroke="#f59e0b" stroke-width="3"/>
+        <!-- Ball hitting middle stump (subtle dynamic touch) -->
+        <circle cx="30" cy="48" r="7" stroke="#ef4444" stroke-width="1.5" fill="rgba(239,68,68,0.15)"/>
       </g>
     `
   },
@@ -603,6 +606,10 @@ function generateMatchCardSvg(spec = {}) {
   const cfg = SPORT_CONFIGS[catKey] || SPORT_CONFIGS.other;
   const accent = cfg.accent || CARD_FALLBACK_ACCENT;
 
+  // ─── Cricket-specific score handling ───
+  // Cricket scores: "142/3 (18.2)" = runs/wickets (overs). Much wider than football "2:1".
+  const isCricket = catKey === 'cricket';
+
   const margin = CARD_SAFE_MARGIN;
   const headerY = isPoster ? 54 : 54;
 
@@ -620,17 +627,34 @@ function generateMatchCardSvg(spec = {}) {
   const channelMark = spec.channelMark || null;
   const available = (badge1 ? 1 : 0) + (badge2 ? 1 : 0);
 
-  // Only a plausible H:MM / H-MM score is ever displayed. Anything else
-  // (empty, "TBD", a stray title) is dropped rather than drawn as noise.
+  // ─── Score parsing ───
+  // Football/others: "2:1" or "2-1"  →  "2 – 1"
+  // Cricket: "142/3 (18.2)" or "142/3"  →  "142/3 (18.2 ov)"
+  // Only plausible scores are displayed; garbage is dropped.
   const scoreRaw = String(spec.score === undefined || spec.score === null ? '' : spec.score).trim();
-  const scoreText = /^\d{1,3}\s*[:\u2013\u2014-]\s*\d{1,3}$/.test(scoreRaw) ? scoreRaw : '';
+  let scoreText = '';
+  let oversText = '';
+  if (isCricket) {
+    // Cricket: runs/wickets (overs)  e.g. "142/3 (18.2)" or "142/3" or "142-3"
+    const cricketMatch = scoreRaw.match(/^(\d{1,3}\s*[\/\-\:]\s*\d{1,2})(?:\s*\((\d{1,2}\.?\d?)\))?$/);
+    if (cricketMatch) {
+      scoreText = cricketMatch[1].replace(/\s+/g, '').replace('-', '/').replace(':', '/');
+      if (cricketMatch[2]) oversText = cricketMatch[2] + ' ov';
+    }
+  } else {
+    // Football/standard: H:MM or H-MM
+    if (/^\d{1,3}\s*[:\u2013\u2014-]\s*\d{1,3}$/.test(scoreRaw)) {
+      scoreText = scoreRaw;
+    }
+  }
 
   const stRaw = String(spec.status || '').toLowerCase();
   const status = (stRaw === 'live' || stRaw === 'upcoming' || stRaw === 'replay' || stRaw === '247') ? stRaw : '';
 
   // "2:3" -> "2 – 3" so the score reads as a scoreboard rather than a timestamp.
+  // Cricket scores (e.g. "142/3") retain their runs/wickets slash formatting.
   const scoreBits = scoreText.split(/\s*[:\u2013\u2014-]\s*/);
-  const scoreDisplay = scoreBits.length === 2 ? scoreBits[0] + ' \u2013 ' + scoreBits[1] : scoreText;
+  const scoreDisplay = isCricket ? scoreText : (scoreBits.length === 2 ? scoreBits[0] + ' \u2013 ' + scoreBits[1] : scoreText);
   // A live fixture's score IS the headline, so it takes the hero slot instead of
   // being reduced to a footnote in the status pill.
   const scoreHero = !!scoreText && (status === 'live' || status === 'replay');
@@ -642,7 +666,8 @@ function generateMatchCardSvg(spec = {}) {
   // fixed, so a two-digit score such as "10 – 12" shrinks instead of colliding
   // with the badges. Measured in condensed-bold glyph widths (~0.55em).
   const scoreLetterspace = isPoster ? 2.6 : 3;
-  const heroGap = isPoster ? 250 : 300;
+  // Cricket scores like "142/3 (18.2 ov)" are much wider → increase gap
+  const heroGap = isCricket ? (isPoster ? 340 : 400) : (isPoster ? 250 : 300);
   const heroScoreSize = Math.max(
     30,
     Math.min(96, Math.floor((heroGap - (scoreDisplay.length - 1) * scoreLetterspace) / (scoreDisplay.length * 0.55)))
@@ -759,10 +784,15 @@ function generateMatchCardSvg(spec = {}) {
       // Live scoreboard. The score is the hero: crests anchor the two sides,
       // names sit beneath them, and the score owns the centre of the card.
       parts.push(crest(168, 190, 76, badge1, team1));
-      parts.push(crest(632, 190, 76, badge2, team2));
-      parts.push('<text x="400" y="246" font-family="' + CARD_COND + '" font-size="' + heroScoreSize + '" font-weight="800" letter-spacing="' + scoreLetterspace + '" fill="url(#scoreFill)" text-anchor="middle">' + escapeXml(scoreDisplay) + '</text>');
+      const scoreY = isCricket && oversText ? 240 : 246;
+      parts.push('<text x="400" y="' + scoreY + '" font-family="' + CARD_COND + '" font-size="' + heroScoreSize + '" font-weight="800" letter-spacing="' + scoreLetterspace + '" fill="url(#scoreFill)" text-anchor="middle">' + escapeXml(scoreDisplay) + '</text>');
+      // Cricket: show overs below score (e.g. "18.2 ov")
+      if (isCricket && oversText) {
+        parts.push('<text x="400" y="266" font-family="' + CARD_SANS + '" font-size="16" font-weight="600" letter-spacing="1" fill="' + accent + '" text-anchor="middle">' + escapeXml(oversText) + '</text>');
+      }
       const heroRule = Math.min(heroGap * 0.5, scoreDisplay.length * heroScoreSize * 0.29);
-      parts.push('<rect x="' + (400 - heroRule / 2).toFixed(1) + '" y="264" width="' + heroRule.toFixed(1) + '" height="3" rx="1.5" fill="' + CARD_HOT + '" opacity="0.85"/>');
+      const ruleY = isCricket && oversText ? 276 : 264;
+      parts.push('<rect x="' + (400 - heroRule / 2).toFixed(1) + '" y="' + ruleY + '" width="' + heroRule.toFixed(1) + '" height="3" rx="1.5" fill="' + CARD_HOT + '" opacity="0.85"/>');
       parts.push(teamName(168, 312, team1, 21));
       parts.push(teamName(632, 312, team2, 21));
       parts.push('<line x1="' + margin + '" y1="392" x2="' + (w - margin) + '" y2="392" stroke="rgba(255,255,255,0.14)" stroke-width="1"/>');
@@ -827,10 +857,15 @@ function generateMatchCardSvg(spec = {}) {
     if (scoreHero) {
       // Same live scoreboard language, stacked for the portrait canvas.
       parts.push(crest(110, 296, 58, badge1, team1));
-      parts.push(crest(490, 296, 58, badge2, team2));
-      parts.push('<text x="300" y="322" font-family="' + CARD_COND + '" font-size="' + heroScoreSize + '" font-weight="800" letter-spacing="' + scoreLetterspace + '" fill="url(#scoreFill)" text-anchor="middle">' + escapeXml(scoreDisplay) + '</text>');
+      const scoreY = isCricket && oversText ? 318 : 322;
+      parts.push('<text x="300" y="' + scoreY + '" font-family="' + CARD_COND + '" font-size="' + heroScoreSize + '" font-weight="800" letter-spacing="' + scoreLetterspace + '" fill="url(#scoreFill)" text-anchor="middle">' + escapeXml(scoreDisplay) + '</text>');
+      // Cricket: show overs below score
+      if (isCricket && oversText) {
+        parts.push('<text x="300" y="342" font-family="' + CARD_SANS + '" font-size="14" font-weight="600" letter-spacing="1" fill="' + accent + '" text-anchor="middle">' + escapeXml(oversText) + '</text>');
+      }
       const heroRule = Math.min(heroGap * 0.5, scoreDisplay.length * heroScoreSize * 0.29);
-      parts.push('<rect x="' + (300 - heroRule / 2).toFixed(1) + '" y="338" width="' + heroRule.toFixed(1) + '" height="3" rx="1.5" fill="' + CARD_HOT + '" opacity="0.85"/>');
+      const ruleY = isCricket && oversText ? 352 : 338;
+      parts.push('<rect x="' + (300 - heroRule / 2).toFixed(1) + '" y="' + ruleY + '" width="' + heroRule.toFixed(1) + '" height="3" rx="1.5" fill="' + CARD_HOT + '" opacity="0.85"/>');
       parts.push(teamName(110, 390, team1, 20));
       parts.push(teamName(490, 390, team2, 20));
       parts.push('<line x1="' + margin + '" y1="512" x2="' + (w - margin) + '" y2="512" stroke="rgba(255,255,255,0.14)" stroke-width="1"/>');
