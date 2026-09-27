@@ -14,7 +14,8 @@
     "generate:provider": "node scripts/generate-provider.js",
     "check-sources": "node scripts/check-sources.js",
     "prewarm:cron": "node scripts/prewarm-cron.js",
-    "prewarm:cron:dry": "node scripts/prewarm-cron.js --dry-run"
+    "prewarm:cron:dry": "node scripts/prewarm-cron.js --dry-run",
+    "sync:matches": "node scripts/sync-matches.js"
   },
   "dependencies": {
     "acorn": "^8.18.0",
