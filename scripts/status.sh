@@ -7,16 +7,22 @@
 #   cd /root/nuvio-live-sports
 #   bash scripts/status.sh
 #
-# It answers four questions in plain words, no JSON to read:
-#   1. Is the app alive and fast?
-#   2. Do DaddyLive streams actually work right now?
-#   3. Is the server under memory pressure (the thing that broke it)?
-#   4. Are workers stable, or silently restarting?
+# Four questions, answered in words rather than JSON:
+#   1. Is the app responding, and is its response actually being served?
+#   2. Do DaddyLive streams actually resolve right now?
+#   3. Is the server under memory pressure?  (this is what broke it)
+#   4. Are the workers running, and how many restarts have they had?
+#
+# MEASUREMENT NOTE (important):
+#   Timing is taken on LOOPBACK (127.0.0.1), never on the public hostname.
+#   Going out to nuviosports.xyz makes the number include Cloudflare and a cold
+#   TLS handshake, which produced a bogus "18s - users are waiting" on an app
+#   that answered in 0.58s. A health check must measure the app, not the path.
 #
 # Run it twice a few minutes apart: the worker section compares against the
-# previous run, so only the second run can say "restarts are climbing".
+# previous run, so only a second run can say whether restarts are climbing.
 #
-# Colour is disabled automatically when the output is piped or captured.
+# Colour is disabled automatically when output is piped.
 # Exit: 0 = all good, 1 = something needs attention.
 #
 set -uo pipefail
@@ -32,8 +38,6 @@ PORT_CFG="${PORT_CFG:-7000}"
 BASE="http://127.0.0.1:${PORT_CFG}"
 
 PROBLEMS=0
-
-# Colour only on a real terminal, so piping to a file stays readable.
 if [ -t 1 ]; then
   C_OK=$'\033[1;32m'; C_BAD=$'\033[1;31m'; C_WARN=$'\033[1;33m'; C_HDR=$'\033[1;36m'; C_OFF=$'\033[0m'
 else
@@ -47,12 +51,41 @@ line() { printf '\n%s%s%s\n' "$C_HDR" "$*" "$C_OFF"; }
 echo ""
 echo "======================================================="
 echo "  NUVIO HEALTH CHECK     $(date '+%Y-%m-%d %H:%M:%S')"
+echo "  checking loopback port ${PORT_CFG} (not the public host)"
 echo "======================================================="
 
-# ------------------------------------------------- 1. alive and fast
-line "1. Is the app alive and fast?"
-# Read status AND time together: a fast response that is not 200 (or 000 =
-# could not connect) is NOT healthy, so timing alone must not decide.
+# ------------------------------------------------- 0. workers + restarts
+# Done FIRST: if workers are restarting, that explains everything below, so it
+# should not be reported as a footnote after a confusing timing number.
+line "1. Are the workers running, and restarting?"
+if command -v pm2 >/dev/null 2>&1; then
+  STATE_FILE="/tmp/nuvio-status-prev"
+  CUR="$(pm2 jlist 2>/dev/null | grep -o '"pm_id"' | wc -l | tr -d ' ')"
+  RESTARTS="$(pm2 jlist 2>/dev/null | grep -o '"restart_time":[0-9]*' | sed 's/.*://' | paste -sd+ - | bc 2>/dev/null)"
+  PERW="$(pm2 jlist 2>/dev/null | grep -o '"restart_time":[0-9]*' | sed 's/.*://' | paste -sd' ' -)"
+  [ -n "$RESTARTS" ] || RESTARTS='?'
+  echo "  workers running : ${CUR}"
+  echo "  restarts each   : ${PERW:-unknown}"
+  echo "  restarts total  : ${RESTARTS}   (cumulative since last pm2 delete)"
+
+  if [ -f "$STATE_FILE" ]; then
+    PREV="$(cat "$STATE_FILE" 2>/dev/null || echo '?')"
+    case "$PREV" in ''|*[!0-9]*) PREV='?' ;; esac
+    if [ "$RESTARTS" != '?' ] && [ "$PREV" != '?' ] && [ "$RESTARTS" -gt "$PREV" ] 2>/dev/null; then
+      bad "restarts INCREASED since last check (${PREV} -> ${RESTARTS}) - workers are still dying"
+    else
+      ok "restarts unchanged since last check (${PREV}) - workers are stable"
+    fi
+  else
+    echo "  (first run - run again in a few minutes to see whether restarts climb)"
+  fi
+  echo "$RESTARTS" > "$STATE_FILE" 2>/dev/null || true
+else
+  warn "pm2 not on PATH; skipping worker check"
+fi
+
+# ------------------------------------------------- 2. app responding
+line "2. Is the app responding on loopback?"
 RESP="$(curl -s -o /dev/null -w '%{http_code} %{time_total}' --max-time 20 "${BASE}/manifest.json" 2>/dev/null || echo '000 99')"
 CODE="${RESP%% *}"; T="${RESP##* }"
 [ -n "$CODE" ] || CODE=000
@@ -60,25 +93,25 @@ CODE="${RESP%% *}"; T="${RESP##* }"
 
 if [ "$CODE" != "200" ]; then
   if [ "$CODE" = "000" ]; then
-    bad "app is NOT responding on port ${PORT_CFG} - is pm2 running?  (try: pm2 status)"
+    bad "no response on 127.0.0.1:${PORT_CFG} - is pm2 running?  (pm2 status)"
   else
     bad "manifest returned HTTP ${CODE} (expected 200)"
   fi
 elif awk -v t="$T" 'BEGIN{exit !(t<3)}'; then
-  ok "manifest responded 200 in ${T}s"
-elif awk -v t="$T" 'BEGIN{exit !(t<8)}'; then
-  warn "manifest is OK but slow: ${T}s (want under 1s; usually means still warming up)"
+  ok "manifest served 200 in ${T}s"
+elif awk -v t="$T" 'BEGIN{exit !(t<10)}'; then
+  warn "manifest slow: ${T}s on loopback (want under 1s; still warming up?)"
 else
-  bad "manifest very slow: ${T}s - users are waiting"
+  bad "manifest very slow even on loopback: ${T}s"
 fi
 
-# ------------------------------------------------- 2. daddylive actually works
-line "2. Do DaddyLive streams actually work?"
-DLV_IDS="$(curl -s --max-time 20 "${BASE}/api/matches" 2>/dev/null \
+# ------------------------------------------------- 3. daddylive works
+line "3. Do DaddyLive streams actually work?"
+DLV_IDS="$(curl -s --max-time 25 "${BASE}/api/matches" 2>/dev/null \
   | grep -o '"id":"dlv[^"]*"' | sed 's/"id":"//;s/"//' | head -40)"
 
 if [ -z "$DLV_IDS" ]; then
-  bad "no DaddyLive match found in the catalog at all"
+  bad "no DaddyLive match in the catalog at all"
 else
   TRIED=0; PLAYED=0
   for id in $(echo "$DLV_IDS" | head -5); do
@@ -95,15 +128,15 @@ else
   fi
 fi
 
-# ------------------------------------------------- 3. memory
-line "3. Is the server under memory pressure?   (this is what broke it)"
+# ------------------------------------------------- 4. memory
+line "4. Is the server under memory pressure?   (this is what broke it)"
 if command -v free >/dev/null 2>&1; then
   AVAIL_MB="$(free -m | awk '/^Mem:/{print $7}')"
   USED_PCT="$(free | awk '/^Mem:/{printf "%d", ($3/$2)*100}')"
   SWAP_MB="$(free -m | awk '/^Swap:/{print $3}')"
   [ -n "$AVAIL_MB" ] || AVAIL_MB=0
   if [ "$AVAIL_MB" -lt 300 ]; then
-    bad "only ${AVAIL_MB}MB RAM available (${USED_PCT}% used) - this is what causes worker restarts"
+    bad "only ${AVAIL_MB}MB RAM available (${USED_PCT}% used) - this causes worker restarts"
   elif [ "$AVAIL_MB" -lt 800 ]; then
     warn "${AVAIL_MB}MB RAM available (${USED_PCT}% used) - getting tight"
   else
@@ -114,34 +147,6 @@ if command -v free >/dev/null 2>&1; then
   fi
 else
   warn "free not available; skipping memory check"
-fi
-
-# ------------------------------------------------- 4. workers stable?
-line "4. Are the workers stable, or silently restarting?"
-if command -v pm2 >/dev/null 2>&1; then
-  STATE_FILE="/tmp/nuvio-status-prev"
-  CUR="$(pm2 jlist 2>/dev/null | grep -o '"pm_id"' | wc -l | tr -d ' ')"
-  RESTARTS="$(pm2 jlist 2>/dev/null | grep -o '"restart_time":[0-9]*' | sed 's/.*://' | paste -sd+ - | bc 2>/dev/null)"
-  PERW="$(pm2 jlist 2>/dev/null | grep -o '"restart_time":[0-9]*' | sed 's/.*://' | paste -sd' ' -)"
-  [ -n "$RESTARTS" ] || RESTARTS='?'
-  echo "  workers running : ${CUR}"
-  echo "  restarts each   : ${PERW:-unknown}   (left to right = worker order)"
-  echo "  restarts total  : ${RESTARTS}   (cumulative since last pm2 delete)"
-
-  if [ -f "$STATE_FILE" ]; then
-    PREV="$(cat "$STATE_FILE" 2>/dev/null || echo '?')"
-    case "$PREV" in ''|*[!0-9]*) PREV='?' ;; esac
-    if [ "$RESTARTS" != '?' ] && [ "$PREV" != '?' ] && [ "$RESTARTS" -gt "$PREV" ] 2>/dev/null; then
-      bad "restarts INCREASED since last check (${PREV} -> ${RESTARTS}) - workers are still dying"
-    else
-      ok "restarts unchanged since last check (${PREV}) - workers are stable"
-    fi
-  else
-    echo "  (first run - run this again in a few minutes to see if restarts climb)"
-  fi
-  echo "$RESTARTS" > "$STATE_FILE" 2>/dev/null || true
-else
-  warn "pm2 not on PATH; skipping worker check"
 fi
 
 # ------------------------------------------------- summary
