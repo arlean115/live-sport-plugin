@@ -488,7 +488,23 @@ class MatchAggregator {
       const presentIds = new Set(activeMatches.map((m) => m && m.id).filter(Boolean));
 
       for (const provider of CARRY_FORWARD_PROVIDERS) {
-        if (usedProvider(provider)) continue; // provider answered; nothing to carry
+        // 'Provider answered' is not enough to decide health: a provider can
+        // return PARTIAL data and still be broken. DaddyLive is the case that
+        // proved it - it always returns 24/7 channel rows, even when the
+        // schedule fetch fails, so it always looked 'healthy' while every
+        // fixture was being lost (observed: channels 651, fixtures 0).
+        //
+        // So: prefer the provider's own declaration when it publishes one.
+        // A provider whose SCHEDULE broke is treated as not-answered, and its
+        // previous rows are carried forward.
+        const scheduleBrokeFor = (srcName) => this.providers.some((p) =>
+          p && p.sourceName === srcName && p.lastScheduleOk === false);
+
+        if (usedProvider(provider) && !scheduleBrokeFor(provider)) continue; // provider answered fully; nothing to carry
+
+        if (scheduleBrokeFor(provider)) {
+          console.warn(`[MatchAggregator] ${provider} schedule fetch failed this sync; carrying forward its previous entries.`);
+        }
 
         const carried = previous.filter((m) => {
           if (!m || !m.id || presentIds.has(m.id)) return false;

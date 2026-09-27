@@ -110,6 +110,15 @@ class DaddyLiveProvider extends BaseProvider {
   constructor(opts = {}) {
     super(opts);
     this.name = 'DaddyLive';
+    // Stable source key, so MatchAggregator can associate this instance with
+    // the 'daddylive' source without guessing from the display name.
+    this.sourceName = 'daddylive';
+    // Did the SCHEDULE fetch succeed on the last getMatches() run?
+    // Must be tri-state: null = never run, true = ok, false = failed.
+    // This matters because this provider always returns 24/7 channel rows
+    // even when the schedule fails, so 'did it return anything' is not a
+    // usable health signal - fixtures and channels fail independently.
+    this.lastScheduleOk = null;
     this.baseDomains = ['https://dlive.sx', 'https://dlstreams.st'];
     this.folders = ['cast', 'casting', 'watch', 'player', 'plus', 'stream'];
     this._decoded = new Map(); // sourceId -> { streams, expiresAt }
@@ -603,6 +612,7 @@ class DaddyLiveProvider extends BaseProvider {
       // separate fetch and the two fail independently. Early-returning here
       // meant one schedule blip also discarded every 24/7 channel row
       // (measured: ~879 channel matches lost alongside the fixtures).
+      this.lastScheduleOk = !!data && typeof data === 'object';
       const scheduleOk = !!data && typeof data === 'object';
       if (!scheduleOk) {
         console.warn(`[${this.name}] Schedule unavailable this sync; continuing to 24/7 channels.`);
@@ -793,6 +803,7 @@ class DaddyLiveProvider extends BaseProvider {
         }
       }
     } catch (err) {
+      this.lastScheduleOk = false;
       console.error(`[${this.name}] Failed to get matches:`, err.message);
     }
 
