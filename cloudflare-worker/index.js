@@ -422,7 +422,7 @@ export default {
     // WebP/RIFF header, so a client asking for file bytes 0-1023 must ask
     // upstream for 42-1065. When we do that the returned body already starts
     // at payload byte 0 and must NOT be stripped again.
-    const isCloakedImage = targetUrl.includes('.image');
+    const isCloakedImage = targetUrl.includes('.image') && (targetUrl.includes('strmd.st') || targetUrl.includes('streamed.pk'));
     const clientRange = request.headers.get('Range') || request.headers.get('range');
     let shiftedRange = false;
     if (isCloakedImage && clientRange) {

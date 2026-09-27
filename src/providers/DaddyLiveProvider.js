@@ -55,6 +55,11 @@ function _cleanManifestUrl(url) {
     .replace(/[\\"']+$/, '');     // trailing JSON/quote leftovers
 }
 
+function isTikTokCloakedStream(url) {
+  if (!url || typeof url !== 'string') return false;
+  return /cowedd4855ws|tiktokcdn|tiktokx-origin/i.test(url);
+}
+
 class DaddyLiveProvider extends BaseProvider {
   static isEventStream(name) {
     if (!name || typeof name !== 'string') return false;
@@ -68,7 +73,7 @@ class DaddyLiveProvider extends BaseProvider {
     super(opts);
     this.name = 'DaddyLive';
     this.baseDomains = ['https://dlive.sx', 'https://dlstreams.st'];
-    this.folders = ['casting', 'stream', 'cast', 'watch', 'player', 'plus'];
+    this.folders = ['cast', 'casting', 'watch', 'player', 'plus', 'stream'];
     this._decoded = new Map(); // sourceId -> { streams, expiresAt }
 
     // Self-healing domain knowledge. The container injects `iframeDomainRegistry`
@@ -268,13 +273,13 @@ class DaddyLiveProvider extends BaseProvider {
       const conf = this.decodeEconfig(econfigMatch[1]);
       if (conf) {
         const u = conf.stream_url || conf.stream_url_nop2p || null;
-        if (u) return { url: _cleanManifestUrl(u), referer: pageUrl, strategy: 'econfig' };
+        if (u && !isTikTokCloakedStream(u)) return { url: _cleanManifestUrl(u), referer: pageUrl, strategy: 'econfig' };
       }
     }
 
     // 2. Extractor chain
     const chainResult = extractChain(html, 'daddylive');
-    if (chainResult && chainResult.url) return { url: _cleanManifestUrl(chainResult.url), referer: pageUrl, strategy: 'chain' };
+    if (chainResult && chainResult.url && !isTikTokCloakedStream(chainResult.url)) return { url: _cleanManifestUrl(chainResult.url), referer: pageUrl, strategy: 'chain' };
 
     // 3. Plain regex for a direct HLS playlist.
     //    The char class deliberately ALLOWS backslashes: when the URL sits inside
@@ -286,13 +291,13 @@ class DaddyLiveProvider extends BaseProvider {
     const escapedMatch = html.match(/(https?:\\\/\\\/[^\s"'<>]+\.m3u8[^\s"'<>]*)/i);
     const configMatch = html.match(/streamUrl:\s*["']([^"']+)["']/i);
     
-    if (configMatch && configMatch[1]) {
+    if (configMatch && configMatch[1] && !isTikTokCloakedStream(configMatch[1])) {
       return { url: _cleanManifestUrl(configMatch[1]), referer: pageUrl, strategy: 'config' };
     }
-    if (directMatch && directMatch[1]) {
+    if (directMatch && directMatch[1] && !isTikTokCloakedStream(directMatch[1])) {
       return { url: _cleanManifestUrl(directMatch[1]), referer: pageUrl, strategy: 'direct' };
     }
-    if (escapedMatch && escapedMatch[1]) {
+    if (escapedMatch && escapedMatch[1] && !isTikTokCloakedStream(escapedMatch[1])) {
       return { url: _cleanManifestUrl(escapedMatch[1]), referer: pageUrl, strategy: 'escaped' };
     }
 
@@ -851,6 +856,9 @@ class DaddyLiveProvider extends BaseProvider {
             iframeUrl = new URL(iframeUrl, playerUrl).toString();
           }
 
+          // Skip known TikTok CDN web player iframe to avoid resolving to cloaked PNG video
+          if (/daddyliveplayer\.st/i.test(iframeUrl)) continue;
+
           let embedOrigin = '';
           try {
             embedOrigin = new URL(iframeUrl).origin;
@@ -878,7 +886,7 @@ class DaddyLiveProvider extends BaseProvider {
           // Resolve via the shared helper: _econfig -> chain -> direct m3u8
           // -> JSON player hop -> nested iframe (recursive, up to 2 levels).
           const resolved = await this._resolveFromHtml(embedHtml, iframeUrl, 0);
-          if (resolved && resolved.url) {
+          if (resolved && resolved.url && !isTikTokCloakedStream(resolved.url)) {
             m3u8Url = resolved.url;
             // The manifest may be served from a deeper page than the first
             // iframe, so the Referer must match THAT page, not the wrapper.

@@ -318,14 +318,14 @@ describe('DaddyLiveProvider', () => {
 
       // First domain fails, second domain succeeds
       provider.proxyFetch = jest.fn()
-        .mockRejectedValueOnce(new Error('dlstreams.st timeout'))
+        .mockRejectedValueOnce(new Error('primary domain timeout'))
         .mockResolvedValueOnce({ ok: true, json: async () => mockSchedule });
 
       const data = await provider.fetchSchedule.fire();
       expect(data).toBeDefined();
       expect(provider.proxyFetch).toHaveBeenCalledTimes(2);
-      expect(provider.proxyFetch.mock.calls[0][0]).toContain('https://dlstreams.st');
-      expect(provider.proxyFetch.mock.calls[1][0]).toContain('https://dlive.sx');
+      expect(provider.proxyFetch.mock.calls[0][0]).toContain(provider.baseDomains[0]);
+      expect(provider.proxyFetch.mock.calls[1][0]).toContain(provider.baseDomains[1]);
     });
   });
 

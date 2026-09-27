@@ -309,8 +309,8 @@ export default {
         responseHeaders.set('Content-Type', 'video/mp2t');
       }
       
-      // For Streamed.pk / TikTok CDN .image chunks, strip the 42-byte fake WebP header in flight
-      if (targetUrl.includes('.image')) {
+      // For Streamed.pk .image chunks, strip the 42-byte fake WebP header in flight
+      if (targetUrl.includes('.image') && (targetUrl.includes('strmd.st') || targetUrl.includes('streamed.pk'))) {
         let skipped = 0;
         const transformStream = new TransformStream({
           transform(chunk, controller) {
