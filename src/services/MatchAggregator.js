@@ -458,6 +458,67 @@ class MatchAggregator {
     });
 
     console.log(`[MatchAggregator] Sync complete. Merged ${activeMatches.length} active events.`);
+    // ── Provider carry-forward ──────────────────────────────────────────────
+    // The cache below is written whenever ANY provider succeeded, so a single
+    // provider that blips silently loses every one of its rows. DaddyLive is the
+    // observed case: its schedule fetch uses a hard 6s timeout, and on a loaded
+    // host it intermittently times out, which used to wipe all ~700 DaddyLive
+    // entries from the cache. The catalog then showed NO DaddyLive rows for the
+    // whole 4h sync interval (reproduced on production: 132 dlv rows at 01:30,
+    // 0 rows at 01:34 after an automatic re-sync).
+    //
+    // Instead of dropping them, carry forward the provider's still-valid entries
+    // from the PREVIOUS cache. Bounded deliberately:
+    //   - only for a provider that returned NOTHING this round (a real outage
+    //     still surfaces as an outage once the carried entries age out);
+    //   - only entries still inside the normal retention window, so we never
+    //     resurrect finished events;
+    //   - hard capped, so a long outage cannot grow the cache without limit.
+    try {
+      const CARRY_FORWARD_PROVIDERS = ['daddylive'];
+      const CARRY_FORWARD_MAX = Number(process.env.CARRY_FORWARD_MAX || 400);
+      const nowForCarry = Date.now();
+      const retentionMs = 24 * 3600 * 1000;
+
+      const usedProvider = (provider) => finalMatches.some((m) =>
+        Array.isArray(m.sources) && m.sources.some((s) => s && s.source === provider));
+
+      let previous = [];
+      try { previous = this.cacheService.getMatches() || []; } catch (_) { previous = []; }
+      const presentIds = new Set(activeMatches.map((m) => m && m.id).filter(Boolean));
+
+      for (const provider of CARRY_FORWARD_PROVIDERS) {
+        if (usedProvider(provider)) continue; // provider answered; nothing to carry
+
+        const carried = previous.filter((m) => {
+          if (!m || !m.id || presentIds.has(m.id)) return false;
+          if (!Array.isArray(m.sources) || !m.sources.some((s) => s && s.source === provider)) return false;
+          // Date-less rows are 24/7 channels: evergreen, always keep.
+          //
+          // The '0'/'00' sentinel matters: _parseEventDate('0') is NOT 0, because
+          // its Date.parse fallback reads the bare string "0" as the year 2000.
+          // That made a 24/7 channel look ~26 years stale and get dropped. Guard
+          // the sentinel explicitly, exactly as catalog.getKickoff does, and only
+          // then consult the parser.
+          const rawDate = m.date;
+          const isEvergreen = rawDate == null || rawDate === '' || /^0+$/.test(String(rawDate).trim());
+          if (isEvergreen) return true;
+          const kickoff = _parseEventDate(rawDate);
+          if (!kickoff) return true;
+          return nowForCarry <= kickoff + retentionMs;
+        }).slice(0, CARRY_FORWARD_MAX);
+
+        if (carried.length > 0) {
+          activeMatches.push(...carried);
+          console.warn(`[MatchAggregator] ${provider} returned nothing this sync; carried forward ${carried.length} entry(ies) from the previous cache.`);
+        } else {
+          console.warn(`[MatchAggregator] ${provider} returned nothing this sync and no valid entries were available to carry forward.`);
+        }
+      }
+    } catch (carryErr) {
+      console.error('[MatchAggregator] Provider carry-forward failed:', carryErr.message);
+    }
+
     if (anyProviderSucceeded) {
       // Backfill competitors derived from the title before persisting. Providers
       // that publish a head-to-head title without team1/team2 (tennis singles,
