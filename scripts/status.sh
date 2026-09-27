@@ -60,9 +60,24 @@ echo "======================================================="
 line "1. Are the workers running, and restarting?"
 if command -v pm2 >/dev/null 2>&1; then
   STATE_FILE="/tmp/nuvio-status-prev"
-  CUR="$(pm2 jlist 2>/dev/null | grep -o '"pm_id"' | wc -l | tr -d ' ')"
-  RESTARTS="$(pm2 jlist 2>/dev/null | grep -o '"restart_time":[0-9]*' | sed 's/.*://' | paste -sd+ - | bc 2>/dev/null)"
-  PERW="$(pm2 jlist 2>/dev/null | grep -o '"restart_time":[0-9]*' | sed 's/.*://' | paste -sd' ' -)"
+  # Count workers from the process LIST, not from text matches.
+  # The previous version grepped for "pm_id" and counted hits, but a real
+  # process object contains that pattern more than once per process (and other
+  # fields match too), so it reported 4 for a 2-worker cluster - which sent a
+  # deploy into a needless restart. `pm2 jlist` is a JSON array, one object per
+  # process, so counting top-level objects is the reliable way.
+  if command -v node >/dev/null 2>&1; then
+    CUR="$(pm2 jlist 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const a=JSON.parse(d);process.stdout.write(String(Array.isArray(a)?a.length:0))}catch(_){process.stdout.write('?')}})")"
+  else
+    CUR="$(pm2 jlist 2>/dev/null | grep -c '"pm_id":[0-9]')"
+  fi
+  if command -v node >/dev/null 2>&1; then
+    PERW="$(pm2 jlist 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const a=JSON.parse(d);process.stdout.write(a.map(p=>(p.pm2_env&&p.pm2_env.restart_time)||0).join(' '))}catch(_){process.stdout.write('unknown')}})")"
+    RESTARTS="$(echo "$PERW" | awk '{s=0; for(i=1;i<=NF;i++) s+=$i; print s}')"
+  else
+    RESTARTS="$(pm2 jlist 2>/dev/null | grep -o '"restart_time":[0-9]*' | sed 's/.*://' | paste -sd+ - | bc 2>/dev/null)"
+    PERW="$(pm2 jlist 2>/dev/null | grep -o '"restart_time":[0-9]*' | sed 's/.*://' | paste -sd' ' -)"
+  fi
   [ -n "$RESTARTS" ] || RESTARTS='?'
   echo "  workers running : ${CUR}"
   echo "  restarts each   : ${PERW:-unknown}"
