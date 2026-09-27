@@ -379,14 +379,34 @@ const TEAM_ALIASES = {
   'birmingham phoenix': 'Birmingham Phoenix',
   'trent rockets': 'Trent Rockets',
   'welsh fire': 'Welsh Fire',
-  'london spirit': 'London Spirit'
+  'london spirit': 'London Spirit',
+
+  // European Football, Basketball, Hockey, Handball & Rugby aliases
+  'sporting braga': 'Braga',
+  'sc braga': 'Braga',
+  'sluc nancy': 'SLUC Nancy',
+  'nancy': 'SLUC Nancy',
+  'paris': 'Paris Basketball',
+  'vfl gummersbach': 'VfL Gummersbach',
+  'gummersbach': 'VfL Gummersbach',
+  'bergischer hc': 'Bergischer HC',
+  'bergischer': 'Bergischer HC',
+  'telekom baskets bonn': 'Bonn',
+  'syntainics mbc': 'Syntainics MBC',
+  'gladiators trier': 'Trier',
+  'science city jena': 'Jena',
+  'kolner haie': 'Kolner',
+  'ewe baskets oldenburg': 'Oldenburg',
+  'hamburg towers': 'Hamburg',
+  'as roma': 'Roma',
+  'us sassuolo': 'Sassuolo'
 };
 
 // ─── 3. Instant Curated Top Badges ──────────────────────────────────────────────
 const CURATED_BADGES = {
   // Premier League & Major European Clubs
   'arsenal': 'https://r2.thesportsdb.com/images/media/team/badge/uyhbfe1612467038.png',
-  'aston villa': 'https://r2.thesportsdb.com/images/media/team/badge/f8373b1716960533.png',
+  'aston villa': 'https://r2.thesportsdb.com/images/media/team/badge/uwzw561787679026.png',
   'bournemouth': 'https://r2.thesportsdb.com/images/media/team/badge/y08nak1534071116.png',
   'afc bournemouth': 'https://r2.thesportsdb.com/images/media/team/badge/y08nak1534071116.png',
   'brentford': 'https://r2.thesportsdb.com/images/media/team/badge/k84q5f1618386125.png',
@@ -442,6 +462,44 @@ const CURATED_BADGES = {
   'mclaren': 'https://r2.thesportsdb.com/images/media/team/badge/5k3mwe1749225165.png',
   'radomlje': 'https://r2.thesportsdb.com/images/media/team/badge/gh0sjd1625755749.png',
   'bravo': 'https://r2.thesportsdb.com/images/media/team/badge/szjnx81579812986.png',
+  'sporting braga': 'https://r2.thesportsdb.com/images/media/team/badge/skbiwo1785775946.png',
+  'braga': 'https://r2.thesportsdb.com/images/media/team/badge/skbiwo1785775946.png',
+  'sc braga': 'https://r2.thesportsdb.com/images/media/team/badge/skbiwo1785775946.png',
+  'sporting cp': 'https://r2.thesportsdb.com/images/media/team/badge/5hiuk71783137875.png',
+  'sassuolo': 'https://r2.thesportsdb.com/images/media/team/badge/xystvp1448806138.png',
+  'roma': 'https://r2.thesportsdb.com/images/media/team/badge/jwro2s1760820674.png',
+  'as roma': 'https://r2.thesportsdb.com/images/media/team/badge/jwro2s1760820674.png',
+  'leicester tigers': 'https://r2.thesportsdb.com/images/media/team/badge/d59nhl1523219441.png',
+  'saracens': 'https://r2.thesportsdb.com/images/media/team/badge/ek19321758786974.png',
+  'angers w': 'https://r2.thesportsdb.com/images/media/team/badge/qq87qd1757667500.png',
+  'landes w': 'https://r2.thesportsdb.com/images/media/team/badge/b9kc4z1757703518.png',
+  'hannover-burgdorf': 'https://r2.thesportsdb.com/images/media/team/badge/t6c1vt1567620859.png',
+  'hannover burgdorf': 'https://r2.thesportsdb.com/images/media/team/badge/t6c1vt1567620859.png',
+  'goppingen': 'https://r2.thesportsdb.com/images/media/team/badge/gcp6ko1643117660.png',
+  'bonn': 'https://r2.thesportsdb.com/images/media/team/badge/fva1jj1726927533.png',
+  'syntainics mbc': 'https://r2.thesportsdb.com/images/media/team/badge/y4h9ox1714562760.png',
+  'trier': 'https://r2.thesportsdb.com/images/media/team/badge/b1vbm11593871848.png',
+  'jena': 'https://r2.thesportsdb.com/images/media/team/badge/r69p651579106388.png',
+  'sluc nancy': 'https://r2.thesportsdb.com/images/media/team/badge/6zbuwh1666897360.png',
+  'nancy': 'https://r2.thesportsdb.com/images/media/team/badge/6zbuwh1666897360.png',
+  'paris basketball': 'https://r2.thesportsdb.com/images/media/team/badge/9q0d6x1726681476.png',
+  'vfl gummersbach': 'https://r2.thesportsdb.com/images/media/team/badge/o8ikpz1662032900.png',
+  'gummersbach': 'https://r2.thesportsdb.com/images/media/team/badge/o8ikpz1662032900.png',
+  'bergischer hc': 'https://r2.thesportsdb.com/images/media/team/badge/20sguw1567030747.png',
+  'bergischer': 'https://r2.thesportsdb.com/images/media/team/badge/20sguw1567030747.png',
+  'leksands': 'https://r2.thesportsdb.com/images/media/team/badge/ruij751571478402.png',
+  'almtuna': 'https://r2.thesportsdb.com/images/media/team/badge/h2i61r1700826162.png',
+  'aik': 'https://r2.thesportsdb.com/images/media/team/badge/rwsrxq1420769503.png',
+  'mora': 'https://r2.thesportsdb.com/images/media/team/badge/9o7dan1735179353.png',
+  'augsburger panther': 'https://r2.thesportsdb.com/images/media/team/badge/gnxeom1637465072.png',
+  'kolner': 'https://r2.thesportsdb.com/images/media/team/badge/wnlfnz1637465482.png',
+  'kolner haie': 'https://r2.thesportsdb.com/images/media/team/badge/wnlfnz1637465482.png',
+  'nurnberg ice tigers': 'https://r2.thesportsdb.com/images/media/team/badge/ypza921637465542.png',
+  'straubing tigers': 'https://r2.thesportsdb.com/images/media/team/badge/a9dpzy1647637978.png',
+  'chemnitz': 'https://r2.thesportsdb.com/images/media/team/badge/cxc1gc1579106325.png',
+  'phoenix hagen': 'https://r2.thesportsdb.com/images/media/team/badge/o2zxvc1573655706.png',
+  'oldenburg': 'https://r2.thesportsdb.com/images/media/team/badge/91nb4u1580151655.png',
+  'hamburg': 'https://r2.thesportsdb.com/images/media/team/badge/tvtppt1473453296.png',
 
   // Cricket national teams (Official ESPN 500x500 badges)
   'england': 'https://a.espncdn.com/i/teamlogos/cricket/500/1.png',
@@ -577,6 +635,11 @@ class TeamLogoService {
       const aliasFolded = aliasLower.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       if (CURATED_BADGES[aliasLower]) return CURATED_BADGES[aliasLower];
       if (CURATED_BADGES[aliasFolded]) return CURATED_BADGES[aliasFolded];
+      const aliasKey = this._normalizeKey(aliasTarget);
+      const aliasCached = this.cache.get(aliasKey);
+      if (aliasCached && aliasCached.url && aliasCached.expiresAt > Date.now()) {
+        return aliasCached.url;
+      }
     }
 
     // 3. Memory cache
@@ -585,6 +648,38 @@ class TeamLogoService {
       if (cached.expiresAt > Date.now()) return cached.url || null;
       this.cache.delete(key);
       if (cleanKey !== key) this.cache.delete(cleanKey);
+    }
+
+    // 4. Pattern-based affix stripping (strip generic suffixes: w, women, lfc, u20, and club affixes: fc, sc, etc.)
+    const lookupKey = (k) => {
+      if (!k) return null;
+      if (CURATED_BADGES[k]) return CURATED_BADGES[k];
+      const c = this.cache.get(k);
+      return (c && c.url && c.expiresAt > Date.now()) ? c.url : null;
+    };
+
+    // A. Strip trailing gender/age qualifiers: women, lfc, u20, u21, u19, w
+    const baseKey = cleanKey.replace(/(women|lfc|u20|u21|u19|u23|w)$/, '');
+    if (baseKey && baseKey !== cleanKey) {
+      const match = lookupKey(baseKey);
+      if (match) return match;
+    }
+
+    // B. Strip club prefixes / suffixes: fc, sc, cf, ac, bk, hc, cd
+    const strippedClub = cleanKey
+      .replace(/^(fc|sc|cf|ac|bk|hc|cd)/, '')
+      .replace(/(fc|sc|cf|ac|bk|hc|cd)$/, '');
+    if (strippedClub && strippedClub !== cleanKey) {
+      const match = lookupKey(strippedClub);
+      if (match) return match;
+    }
+
+    // C. Clean name fallback
+    const cleanedName = this._cleanName(teamName);
+    const cleanedKey = this._normalizeKey(cleanedName);
+    if (cleanedKey && cleanedKey !== key && cleanedKey !== cleanKey) {
+      const match = lookupKey(cleanedKey);
+      if (match) return match;
     }
 
     return null;
@@ -677,7 +772,11 @@ class TeamLogoService {
         });
 
         if (res && res.ok) {
-          const data = typeof res.json === 'function' ? await res.json() : JSON.parse(res.text);
+          let data = null;
+          try {
+            data = typeof res.json === 'function' ? await res.json() : JSON.parse(res.text);
+          } catch (_) { data = null; }
+
           if (data && Array.isArray(data.teams) && data.teams.length > 0) {
             const queryLower = cleanQuery.toLowerCase();
             const bestTeam = data.teams.find(tm => {
@@ -693,10 +792,15 @@ class TeamLogoService {
               return badgeUrl;
             }
           }
+
+          // Only negative cache if we successfully received a 200 OK from TheSportsDB indicating no teams found
+          if (data) {
+            this.cache.set(key, { url: null, expiresAt: Date.now() + NEGATIVE_TTL_MS });
+          }
+          return null;
         }
 
-        // Cache not-found for 24h to prevent hammering
-        this.cache.set(key, { url: null, expiresAt: Date.now() + NEGATIVE_TTL_MS });
+        // On rate-limits (429) or server errors, do not write a negative cache entry
         return null;
       } catch (_) {
         return null;

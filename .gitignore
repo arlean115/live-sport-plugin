@@ -30,5 +30,5 @@ jest.log
 
 # Runtime caches written by the running process. Never tracked: the deploy runs
 # `git reset --hard HEAD`, so a tracked runtime cache is wiped on every deploy.
-data/
-caches/
+/data/
+/caches/
