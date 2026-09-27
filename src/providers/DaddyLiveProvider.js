@@ -7,6 +7,7 @@ const { getChannelLogo } = require('../services/ChannelLogoService');
 const ChannelCountryService = require('../services/ChannelCountryService');
 const { BASE_URL } = require('../config');
 const cheerio = require('cheerio');
+const os = require('os');
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36';
 
@@ -60,6 +61,43 @@ function isTikTokCloakedStream(url) {
   return /cowedd4855ws|tiktokcdn|tiktokx-origin/i.test(url);
 }
 
+/**
+ * Timeout (ms) for a DaddyLive SCHEDULE / CHANNEL fetch - the SYNC path only.
+ *
+ * These fetches used a hard 6000ms across both mirror domains. On a loaded host
+ * that aborts intermittently, and because MatchAggregator writes the match cache
+ * whenever ANY provider succeeded, a single abort used to drop every DaddyLive
+ * row from the cache (measured on production: 132 dlv entries at 01:30 -> 0 at
+ * 01:34, while /health still reported learnedTtls.daddylive at its max).
+ *
+ * The budget scales with load, because load is exactly what makes these slow:
+ * the catalog re-sync is traffic-driven (CronService.ensureFresh), so the busiest
+ * moment is the moment a fixed 6s is least realistic. The default derives from
+ * os.loadavg()[0] (1-minute average) on Linux; platforms that report 0 there
+ * (Windows, some containers) keep the 6000ms floor, so behaviour there is
+ * unchanged. This pairs with the MatchAggregator carry-forward fix: that one
+ * protects the cache when a sync is missed, this one reduces how often it
+ * happens.
+ *
+ * Env:
+ *   DADDYLIVE_SYNC_TIMEOUT_MS  fixed budget in ms (highest priority)
+ *   SYNC_TIMEOUT_MAX_MS        upper clamp (default 25000)
+ */
+function resolveSyncTimeoutMs() {
+  const fixed = parseInt(process.env.DADDYLIVE_SYNC_TIMEOUT_MS, 10);
+  if (Number.isFinite(fixed) && fixed > 0) return fixed;
+
+  const maxMs = parseInt(process.env.SYNC_TIMEOUT_MAX_MS, 10) || 25000;
+  let load = 0;
+  try {
+    const la = os.loadavg();
+    load = Array.isArray(la) && Number.isFinite(la[0]) ? la[0] : 0;
+  } catch (_) { load = 0; }
+
+  const scaled = Math.round(6000 + Math.max(0, load) * 3000);
+  return Math.max(6000, Math.min(scaled, maxMs));
+}
+
 class DaddyLiveProvider extends BaseProvider {
   static isEventStream(name) {
     if (!name || typeof name !== 'string') return false;
@@ -103,7 +141,7 @@ class DaddyLiveProvider extends BaseProvider {
               'Accept': 'application/json',
               'Referer': `${base}/`
             },
-            signal: AbortSignal.timeout(6000)
+            signal: AbortSignal.timeout(resolveSyncTimeoutMs())
           });
           if (res && res.ok) {
             const data = typeof res.json === 'function' ? await res.json() : JSON.parse(res.text);
@@ -147,7 +185,7 @@ class DaddyLiveProvider extends BaseProvider {
               'User-Agent': UA,
               'Referer': `${base}/`
             },
-            signal: AbortSignal.timeout(6000)
+            signal: AbortSignal.timeout(resolveSyncTimeoutMs())
           });
           if (homeRes && homeRes.ok) {
             const homeHtml = typeof homeRes.text === 'function' ? await homeRes.text() : homeRes.text;
@@ -172,7 +210,7 @@ class DaddyLiveProvider extends BaseProvider {
               'User-Agent': UA,
               'Referer': `${base}/`
             },
-            signal: AbortSignal.timeout(6000)
+            signal: AbortSignal.timeout(resolveSyncTimeoutMs())
           });
           if (res.ok) {
             if (typeof res.text === 'function') {
@@ -560,11 +598,19 @@ class DaddyLiveProvider extends BaseProvider {
     const matches = [];
     try {
       const data = await this.fetchSchedule.fire();
-      if (!data || typeof data !== 'object') return matches;
+      // A null schedule (timeout, or the circuit breaker's null fallback) must
+      // NOT abort the whole method: the 24/7 channel block further down is a
+      // separate fetch and the two fail independently. Early-returning here
+      // meant one schedule blip also discarded every 24/7 channel row
+      // (measured: ~879 channel matches lost alongside the fixtures).
+      const scheduleOk = !!data && typeof data === 'object';
+      if (!scheduleOk) {
+        console.warn(`[${this.name}] Schedule unavailable this sync; continuing to 24/7 channels.`);
+      }
 
       const now = Date.now();
 
-      for (const dayHeader of Object.keys(data)) {
+      for (const dayHeader of Object.keys(scheduleOk ? data : {})) {
         // Parse date header (e.g. "Friday 18th Sep 2026 - Schedule Time UK GMT")
         const dateMatch = dayHeader.match(/(\d+)(?:st|nd|rd|th)\s+([A-Za-z]+)(?:\s+(\d{4}))?/i);
         const currentYear = new Date().getUTCFullYear();
