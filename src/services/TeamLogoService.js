@@ -90,12 +90,22 @@ const LEAGUE_EMBLEMS = {
   'mls': 'https://a.espncdn.com/i/leaguelogos/soccer/500/19.png',
   'major league soccer': 'https://a.espncdn.com/i/leaguelogos/soccer/500/19.png',
 
-  // Motorsport
-  'formula 1': 'https://cdn.jsdelivr.net/gh/tv-logo/tv-logos@main/countries/united-kingdom/sky-sports-f1-uk.png',
-  'f1': 'https://cdn.jsdelivr.net/gh/tv-logo/tv-logos@main/countries/united-kingdom/sky-sports-f1-uk.png',
-  'motogp': 'https://cdn.jsdelivr.net/gh/tv-logo/tv-logos@main/countries/italy/sky-sport-motogp-it.png',
+  // Motorsport official series emblems
+  'formula 1': 'https://r2.thesportsdb.com/images/media/league/badge/g8cofl1513623681.png',
+  'f1': 'https://r2.thesportsdb.com/images/media/league/badge/g8cofl1513623681.png',
+  'formula e': 'https://r2.thesportsdb.com/images/media/league/badge/v91pho1674317051.png',
   'nascar': 'https://a.espncdn.com/combiner/i?img=/redesign/assets/img/icons/ESPN-icon-NASCAR.png',
-  'indycar': 'https://a.espncdn.com/combiner/i?img=/i/espn/teamlogos/500/indycar_series.png',
+  'nascar cup series': 'https://a.espncdn.com/combiner/i?img=/redesign/assets/img/icons/ESPN-icon-NASCAR.png',
+  'indycar': 'https://r2.thesportsdb.com/images/media/league/badge/m9xm9w1552216863.png',
+  'indycar series': 'https://r2.thesportsdb.com/images/media/league/badge/m9xm9w1552216863.png',
+  'supercars': 'https://r2.thesportsdb.com/images/media/league/badge/64f67s1770108650.png',
+  'v8 supercars': 'https://r2.thesportsdb.com/images/media/league/badge/64f67s1770108650.png',
+  'british gt': 'https://r2.thesportsdb.com/images/media/league/badge/w2h8gq1547547800.png',
+  'btcc': 'https://r2.thesportsdb.com/images/media/league/badge/a0xreq1556444753.png',
+  'world rallycross': 'https://r2.thesportsdb.com/images/media/league/badge/zzj1ut1768754454.png',
+  'world rally': 'https://r2.thesportsdb.com/images/media/league/badge/zzj1ut1768754454.png',
+  'wrc': 'https://r2.thesportsdb.com/images/media/league/badge/zzj1ut1768754454.png',
+  'motogp': 'https://cdn.jsdelivr.net/gh/tv-logo/tv-logos@main/countries/france/canal-plus-moto-gp-fr.png',
 
   // Basketball
   'nba': 'https://a.espncdn.com/i/teamlogos/leagues/500/nba.png',

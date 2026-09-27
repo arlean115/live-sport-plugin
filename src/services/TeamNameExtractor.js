@@ -23,6 +23,10 @@ const VS_SPLIT = /\s+(?:vs\.?|v|@|at)\s+/i;
 
 function extractTeamsFromTitle(title) {
   if (!title || typeof title !== 'string') return null;
+  // Motorsport events (F1, NASCAR, MotoGP, IndyCar) use "at" or "-" for venues/sessions, never competitors
+  if (/\b(?:nascar|formula\s*1|f1|motogp|indycar|supercars|rallycross|truck series)\b/i.test(title)) {
+    return null;
+  }
   if (!VS_SPLIT.test(title)) return null;
 
   // Category prefixes such as "WTA - Singles:" name the competition, not a

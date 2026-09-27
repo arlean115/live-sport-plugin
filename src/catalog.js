@@ -415,9 +415,10 @@ function mapMatchToMetaPreview(match, config = {}, reqType = 'tv') {
   const matchedChannelThumb = providerThumb ? CHANNEL_THUMBNAIL_MAP.find(m => m.rx.test(providerThumb)) : null;
   const isChannelThumbnail = !!matchedChannelThumb;
   const isMatchup = !!(team1Name && team2Name);
+  const isMotorsport = match.category === 'motorsport';
 
-  const needsLogo = !providerLogo && !providerTeamLogo && (!providerThumb || isChannelThumbnail || isMatchup);
-  const needsPoster = !providerPoster && (!providerThumb || isChannelThumbnail || isMatchup);
+  const needsLogo = !providerLogo && !providerTeamLogo && (!providerThumb || isChannelThumbnail || isMatchup || isMotorsport);
+  const needsPoster = !providerPoster && (!providerThumb || isChannelThumbnail || isMatchup || isMotorsport);
 
   // A provider thumbnail that is really a crest/icon (rather than landscape
   // artwork) cannot serve as a poster; it only suits the embedded single-crest
@@ -501,11 +502,11 @@ function mapMatchToMetaPreview(match, config = {}, reqType = 'tv') {
   // card with the team crests and show the channel logo in the corner.
   let poster;
 
-  if (providerPoster) {
+  if (providerPoster && !isMotorsport) {
     poster = buildImg(providerPoster, posterText, color) || fallbackPoster;
-  } else if (providerThumb && !isMatchup && !isChannelThumbnail) {
+  } else if (providerThumb && !isMatchup && !isChannelThumbnail && !isMotorsport) {
     poster = buildImg(providerThumb, posterText, color, isThumbLogo) || fallbackPoster;
-  } else if (providerLogo && !isMatchup) {
+  } else if (providerLogo && !isMatchup && !isMotorsport) {
     poster = buildImg(providerLogo, posterText, color, true) || fallbackPoster;
   } else {
     // No provider artwork at all (typical for 24/7 networks from CdnLive and
@@ -513,7 +514,7 @@ function mapMatchToMetaPreview(match, config = {}, reqType = 'tv') {
     // resolved channel logo lands on the HERO slot for channel-style entries —
     // otherwise a 24/7 station renders as a big text card with its logo reduced
     // to a 20px footer chip, which reads as "no logo".
-    const isChannelLike = !team1Name && !team2Name;
+    const isChannelLike = !team1Name && !team2Name && !isMotorsport;
     const channelMark = broadcasterLogo || channelLogo;
 
     poster = imageService.matchCardUrl(BASE_URL, {

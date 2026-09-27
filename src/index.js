@@ -476,8 +476,20 @@ app.get(['/img/match', '/:config/img/match'], async (req, res) => {
     // (Boston Red Sox, Canal, MAX and the MLB team channels all do). Resolve the
     // title the same way the competitor names are resolved.
     let channelMark = channelMark0;
-    if (!channelMark && !badge1 && !badge2 && qs(query.title)) {
+    if (!channelMark && !badge1 && !badge2 && qs(query.title) && qs(query.cat) !== 'motorsport') {
       channelMark = await resolveNameToCrest(query.title).then(resolveBadge);
+    }
+
+    // For motorsport, ensure league emblem is resolved if none was passed
+    let leagueBadge0Resolved = leagueBadge0;
+    if (qs(query.cat) === 'motorsport' && !leagueBadge0Resolved) {
+      try {
+        const teamLogoService = container.resolve('teamLogoService');
+        const emblemUrl = teamLogoService.getLeagueLogo(query.lg, query.title, 'motorsport');
+        if (emblemUrl) {
+          leagueBadge0Resolved = await resolveBadge(emblemUrl);
+        }
+      } catch (_) {}
     }
 
     // The same asset is routinely requested twice (a channel logo is both the
@@ -493,7 +505,7 @@ app.get(['/img/match', '/:config/img/match'], async (req, res) => {
       seen.add(value);
       return value;
     };
-    const leagueBadge  = dedupe(leagueBadge0);
+    const leagueBadge  = dedupe(leagueBadge0Resolved);
     channelMark        = dedupe(channelMark);    // hero mark gets priority
     const channelBadge = dedupe(channelBadge0); // footer chip deduped after
 

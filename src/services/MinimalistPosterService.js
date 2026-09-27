@@ -39,22 +39,29 @@ const SPORT_CONFIGS = {
     bgBottom: '#120b0c',
     glow: 'rgba(239, 68, 68, 0.18)',
     icon: (w, h, cx, cy) => `
-      <!-- Minimalist Racing / F1 Silhouette -->
-      <g transform="translate(${cx - 40}, ${cy - 28})" stroke="#f8fafc" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round">
-        <!-- Front wing -->
-        <path d="M4 42 L24 38 L30 38 L36 34 L44 34 L50 38 L56 38 L76 42" stroke="#ef4444" stroke-width="2.5"/>
-        <!-- Chassis profile -->
-        <path d="M40 14 C36 20, 32 30, 24 38 M40 14 C44 20, 48 30, 56 38" fill="rgba(239, 68, 68, 0.25)"/>
-        <!-- Cockpit & Halo -->
-        <circle cx="40" cy="22" r="5" fill="#f8fafc"/>
-        <path d="M33 22 Q40 16 47 22" stroke="#f8fafc" stroke-width="2.5"/>
-        <!-- Wheels -->
-        <rect x="8" y="26" width="10" height="20" rx="3" fill="#18181b" stroke="#f8fafc" stroke-width="2"/>
-        <rect x="62" y="26" width="10" height="20" rx="3" fill="#18181b" stroke="#f8fafc" stroke-width="2"/>
+      <!-- Sleek Aerodynamic F1 Silhouette -->
+      <g transform="translate(${cx - 36}, ${cy - 43})" stroke-linecap="round" stroke-linejoin="round">
         <!-- Rear Wing -->
-        <line x1="20" y1="52" x2="60" y2="52" stroke="#ef4444" stroke-width="2.5"/>
-        <line x1="30" y1="46" x2="30" y2="52"/>
-        <line x1="50" y1="46" x2="50" y2="52"/>
+        <line x1="10" y1="24" x2="62" y2="24" stroke="#ef4444" stroke-width="3"/>
+        <line x1="22" y1="24" x2="22" y2="30" stroke="#ef4444" stroke-width="2"/>
+        <line x1="50" y1="24" x2="50" y2="30" stroke="#ef4444" stroke-width="2"/>
+        <!-- Rear Wheels -->
+        <rect x="6" y="27" width="10" height="18" rx="3" fill="#1e293b" stroke="#f8fafc" stroke-width="1.8"/>
+        <rect x="56" y="27" width="10" height="18" rx="3" fill="#1e293b" stroke="#f8fafc" stroke-width="1.8"/>
+        <!-- Aerodynamic Bodywork / Sidepods -->
+        <path d="M22 32 L20 46 L27 49 L31 38 L36 28 L41 38 L45 49 L52 46 L50 32 Z" fill="rgba(239, 68, 68, 0.28)" stroke="#f8fafc" stroke-width="1.8"/>
+        <!-- Cockpit & Halo Ring -->
+        <ellipse cx="36" cy="38" rx="4" ry="7" fill="#0f172a" stroke="#f8fafc" stroke-width="1.6"/>
+        <circle cx="36" cy="36" r="2.5" fill="#f8fafc"/>
+        <!-- Nosecone -->
+        <path d="M33 46 L34 60 L38 60 L39 46 Z" fill="#ef4444" stroke="#f8fafc" stroke-width="1.8"/>
+        <!-- Front Wing with Endplates -->
+        <path d="M12 59 L26 57 L36 58 L46 57 L60 59" stroke="#ef4444" stroke-width="3"/>
+        <line x1="12" y1="56" x2="12" y2="62" stroke="#f8fafc" stroke-width="2"/>
+        <line x1="60" y1="56" x2="60" y2="62" stroke="#f8fafc" stroke-width="2"/>
+        <!-- Front Wheels -->
+        <rect x="8" y="47" width="9" height="15" rx="2.5" fill="#1e293b" stroke="#f8fafc" stroke-width="1.8"/>
+        <rect x="55" y="47" width="9" height="15" rx="2.5" fill="#1e293b" stroke="#f8fafc" stroke-width="1.8"/>
       </g>
     `
   },
@@ -541,6 +548,30 @@ function pitchLines(w, h) {
   return out.join('');
 }
 
+/**
+ * Racing telemetry streaks and apex kerbing for motorsport cards.
+ * Provides high-speed asphalt texture and race track accents without cluttering.
+ */
+function racingTelemetryLines(w, h) {
+  const out = [];
+  // Faint high-speed horizontal telemetry streaks
+  const streakYs = [0.18, 0.32, 0.48, 0.65, 0.82];
+  streakYs.forEach(pct => {
+    const y = Math.round(h * pct);
+    out.push('<line x1="0" y1="' + y + '" x2="' + w + '" y2="' + y + '" stroke="#ef4444" stroke-opacity="0.05" stroke-width="1" stroke-dasharray="14,24"/>');
+  });
+  // Apex kerb stripe at the top edge (alternating red and white curb blocks)
+  const kerbWidth = 18;
+  const numBlocks = Math.ceil(w / kerbWidth);
+  out.push('<g opacity="0.22">');
+  for (let i = 0; i < numBlocks; i++) {
+    const col = (i % 2 === 0) ? '#ef4444' : '#ffffff';
+    out.push('<polygon points="' + (i * kerbWidth) + ',0 ' + ((i + 1) * kerbWidth) + ',0 ' + ((i + 1) * kerbWidth - 4) + ',4 ' + (i * kerbWidth - 4) + ',4" fill="' + col + '"/>');
+  }
+  out.push('</g>');
+  return out.join('');
+}
+
 function truncateLabel(value, maxChars) {
   const str = String(value === undefined || value === null ? '' : value).trim();
   if (!str) return '';
@@ -559,7 +590,39 @@ function badgeImage(dataUri, x, y, size) {
 
 function buildHeroLines(spec, team1, team2, maxChars) {
   if (team1 && team2) return [team1, 'VS', team2];
-  const raw = String(spec.title || spec.league || 'Live Sports').trim();
+  const catKey = String((spec && spec.category) || '').toLowerCase().trim();
+  const raw = String((spec && (spec.title || spec.league)) || 'Live Sports').trim();
+  if (catKey === 'motorsport') {
+    // Motorsport events are never two teams competing head-to-head with a hyphen
+    // Hyphens denote series/track/session, e.g. "Truck Series - Fr8 208" or "Bahrain GP - Race"
+    let clean = raw;
+    const lg = String((spec && spec.league) || '').trim();
+    if (lg && clean.toLowerCase().startsWith(lg.toLowerCase())) {
+      const stripped = clean.slice(lg.length).replace(/^[\s:\-\u2013\u2014]+/, '').trim();
+      if (stripped.length >= 3) clean = stripped;
+    }
+    const split = clean.split(/\s+[-\u2013\u2014]\s+/).map(s => s.trim()).filter(Boolean);
+    if (split.length >= 2) {
+      return split.slice(0, 2).map(l => truncateLabel(l, maxChars));
+    }
+    // If a long single line exceeds maxChars, wrap across two lines nicely at word boundaries
+    if (clean.length > maxChars) {
+      const words = clean.split(/\s+/);
+      let l1 = '';
+      let l2 = '';
+      for (const w of words) {
+        if (!l2 && (l1 + ' ' + w).trim().length <= maxChars) {
+          l1 = (l1 + ' ' + w).trim();
+        } else {
+          l2 = (l2 + ' ' + w).trim();
+        }
+      }
+      if (l1 && l2) {
+        return [truncateLabel(l1, maxChars), truncateLabel(l2, maxChars)];
+      }
+    }
+    return [truncateLabel(clean, maxChars)];
+  }
   const split = raw.split(/\s+(?:vs\.?|@|[-\u2013\u2014])\s+/i).map(s => s.trim()).filter(Boolean);
   const lines = split.length >= 2 ? [split[0], 'VS', split.slice(1).join(' - ')] : [raw];
   return lines.slice(0, 3).map(l => (l.toUpperCase() === 'VS' ? 'VS' : truncateLabel(l, maxChars))).filter(Boolean);
@@ -683,7 +746,8 @@ function generateMatchCardSvg(spec = {}) {
   // the accent.
   parts.push('<rect width="' + w + '" height="' + h + '" fill="url(#cardBg)"/>');
   parts.push('<rect width="' + w + '" height="' + h + '" fill="url(#arenaLight)"/>');
-  parts.push('<g>' + pitchLines(w, h) + '</g>');
+  const surfaceLines = (catKey === 'motorsport') ? racingTelemetryLines(w, h) : pitchLines(w, h);
+  parts.push('<g>' + surfaceLines + '</g>');
   parts.push('<rect width="' + w + '" height="' + h + '" fill="url(#floor)"/>');
   // Per-sport identity, confined to the edges. A full-card tint desaturated the
   // middle into grey; a corner wash keeps football and basketball cards
@@ -784,6 +848,7 @@ function generateMatchCardSvg(spec = {}) {
       // Live scoreboard. The score is the hero: crests anchor the two sides,
       // names sit beneath them, and the score owns the centre of the card.
       parts.push(crest(168, 190, 76, badge1, team1));
+      parts.push(crest(632, 190, 76, badge2, team2));
       const scoreY = isCricket && oversText ? 240 : 246;
       parts.push('<text x="400" y="' + scoreY + '" font-family="' + CARD_COND + '" font-size="' + heroScoreSize + '" font-weight="800" letter-spacing="' + scoreLetterspace + '" fill="url(#scoreFill)" text-anchor="middle">' + escapeXml(scoreDisplay) + '</text>');
       // Cricket: show overs below score (e.g. "18.2 ov")
@@ -816,13 +881,41 @@ function generateMatchCardSvg(spec = {}) {
     } else {
       // No fixture crests. If a channel logo exists it becomes the hero mark
       // (24/7 stations, where the logo IS the artwork); otherwise typographic.
-      if (channelMark) {
+      const allowChannelHero = channelMark && catKey !== 'motorsport';
+      if (allowChannelHero) {
         const heroName = truncateToWidth(spec.title || leagueName || channelName, 620, 34);
         parts.push('<circle cx="400" cy="180" r="98" fill="rgba(255,255,255,0.045)" stroke="rgba(255,255,255,0.14)" stroke-width="1.2"/>');
         parts.push(badgeImage(channelMark, 400 - 98 * 0.68, 180 - 98 * 0.68, 98 * 1.36));
         if (heroName) {
           parts.push('<text x="400" y="324" font-family="' + CARD_COND + '" font-size="34" font-weight="700" letter-spacing="1.1" fill="url(#nameFill)" text-anchor="middle">' + escapeXml(heroName.toUpperCase()) + '</text>');
         }
+      } else if (catKey === 'motorsport') {
+        // Sleek motorsport hero:
+        // Central aerodynamic carbon disc + red race ring
+        parts.push('<circle cx="400" cy="165" r="76" fill="rgba(18,22,30,0.75)" stroke="' + accent + '" stroke-width="2.5" stroke-opacity="0.85"/>');
+        parts.push('<circle cx="400" cy="165" r="86" fill="none" stroke="' + accent + '" stroke-opacity="0.22" stroke-width="4"/>');
+
+        if (leagueBadge) {
+          // Official racing series emblem (F1, NASCAR, MotoGP, IndyCar, etc.)
+          parts.push(badgeImage(leagueBadge, 400 - 52, 165 - 52, 104));
+        } else {
+          // Precision aerodynamic F1 silhouette vector
+          const glyphScale = 1.35;
+          parts.push('<g transform="translate(400, 165) scale(' + glyphScale + ')">' + sportGlyphMarkup('motorsport') + '</g>');
+        }
+
+        // Event title in condensed, italicized racing typography
+        const heroLines = buildHeroLines(spec, team1, team2, 38);
+        const fs = heroLines.length >= 2 ? 30 : 38;
+        const lh = fs + 12;
+        const startY = 285 - ((heroLines.length - 1) * lh) / 2;
+        heroLines.forEach((line, i) => {
+          parts.push('<text x="400" y="' + (startY + i * lh + fs * 0.35).toFixed(1) + '" font-family="' + CARD_COND + '" font-style="italic" font-size="' + fs + '" font-weight="800" letter-spacing="1.5" fill="url(#nameFill)" text-anchor="middle">' + escapeXml(line.toUpperCase()) + '</text>');
+        });
+
+        // Dynamic red racing speed accent line
+        const accentLineY = Math.min(365, startY + heroLines.length * lh + 4);
+        parts.push('<line x1="340" y1="' + accentLineY + '" x2="460" y2="' + accentLineY + '" stroke="' + accent + '" stroke-width="3" stroke-linecap="round"/>');
       } else {
         const heroLines = buildHeroLines(spec, team1, team2, 22);
         const isMatchup = heroLines.some(l => l.toUpperCase() === 'VS');
@@ -857,6 +950,7 @@ function generateMatchCardSvg(spec = {}) {
     if (scoreHero) {
       // Same live scoreboard language, stacked for the portrait canvas.
       parts.push(crest(110, 296, 58, badge1, team1));
+      parts.push(crest(490, 296, 58, badge2, team2));
       const scoreY = isCricket && oversText ? 318 : 322;
       parts.push('<text x="300" y="' + scoreY + '" font-family="' + CARD_COND + '" font-size="' + heroScoreSize + '" font-weight="800" letter-spacing="' + scoreLetterspace + '" fill="url(#scoreFill)" text-anchor="middle">' + escapeXml(scoreDisplay) + '</text>');
       // Cricket: show overs below score
@@ -887,13 +981,36 @@ function generateMatchCardSvg(spec = {}) {
       }
       parts.push('<line x1="' + margin + '" y1="532" x2="' + (w - margin) + '" y2="532" stroke="rgba(255,255,255,0.14)" stroke-width="1"/>');
     } else {
-      if (channelMark) {
+      const allowChannelHero = channelMark && catKey !== 'motorsport';
+      if (allowChannelHero) {
         const heroName = truncateToWidth(spec.title || leagueName || channelName, 460, 34);
         parts.push('<circle cx="300" cy="240" r="98" fill="rgba(255,255,255,0.045)" stroke="rgba(255,255,255,0.14)" stroke-width="1.2"/>');
         parts.push(badgeImage(channelMark, 300 - 98 * 0.68, 240 - 98 * 0.68, 98 * 1.36));
         if (heroName) {
           parts.push('<text x="300" y="384" font-family="' + CARD_COND + '" font-size="34" font-weight="700" letter-spacing="1.1" fill="url(#nameFill)" text-anchor="middle">' + escapeXml(heroName.toUpperCase()) + '</text>');
         }
+      } else if (catKey === 'motorsport') {
+        // Sleek motorsport poster hero
+        parts.push('<circle cx="300" cy="260" r="88" fill="rgba(18,22,30,0.75)" stroke="' + accent + '" stroke-width="3" stroke-opacity="0.85"/>');
+        parts.push('<circle cx="300" cy="260" r="100" fill="none" stroke="' + accent + '" stroke-opacity="0.22" stroke-width="5"/>');
+
+        if (leagueBadge) {
+          parts.push(badgeImage(leagueBadge, 300 - 62, 260 - 62, 124));
+        } else {
+          const glyphScale = 1.45;
+          parts.push('<g transform="translate(300, 260) scale(' + glyphScale + ')">' + sportGlyphMarkup('motorsport') + '</g>');
+        }
+
+        const heroLines = buildHeroLines(spec, team1, team2, 30);
+        const fs = heroLines.length >= 2 ? 34 : 44;
+        const lh = fs + 14;
+        const startY = 410 - ((heroLines.length - 1) * lh) / 2;
+        heroLines.forEach((line, i) => {
+          parts.push('<text x="300" y="' + (startY + i * lh + fs * 0.35).toFixed(1) + '" font-family="' + CARD_COND + '" font-style="italic" font-size="' + fs + '" font-weight="800" letter-spacing="1.5" fill="url(#nameFill)" text-anchor="middle">' + escapeXml(line.toUpperCase()) + '</text>');
+        });
+
+        const accentLineY = Math.min(520, startY + heroLines.length * lh + 8);
+        parts.push('<line x1="240" y1="' + accentLineY + '" x2="360" y2="' + accentLineY + '" stroke="' + accent + '" stroke-width="3.5" stroke-linecap="round"/>');
       } else {
         const heroLines = buildHeroLines(spec, team1, team2, 16);
         const isMatchup = heroLines.some(l => l.toUpperCase() === 'VS');

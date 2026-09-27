@@ -62,7 +62,7 @@ describe('score reaches the composed match card', () => {
 
   test('the provider-artwork path is unaffected by the score', () => {
     const meta = mapMatchToMetaPreview(
-      liveMatch({ thumbnail_url: 'https://a.espncdn.com/i/teamlogos/leagues/500/nba.png' }),
+      liveMatch({ poster: 'https://a.espncdn.com/i/teamlogos/leagues/500/nba.png' }),
       {}
     );
     expect(meta.poster).toContain('/img?url=');

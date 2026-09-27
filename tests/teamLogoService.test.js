@@ -35,8 +35,8 @@ describe('TeamLogoService', () => {
     test('resolves league and tournament emblems', () => {
       expect(service.getLeagueLogo('Premier League')).toContain('23.png');
       expect(service.getLeagueLogo('UEFA Champions League')).toContain('2.png');
-      expect(service.getLeagueLogo('Formula 1')).toContain('sky-sports-f1');
-      expect(service.getLeagueLogo('', 'Formula 1 Grand Prix Baku', 'motorsport')).toContain('sky-sports-f1');
+      expect(service.getLeagueLogo('Formula 1')).toContain('g8cofl1513623681.png');
+      expect(service.getLeagueLogo('', 'Formula 1 Grand Prix Baku', 'motorsport')).toContain('g8cofl1513623681.png');
       expect(service.getLeagueLogo('NBA')).toContain('nba.png');
       expect(service.getLeagueLogo('UFC 306')).toContain('f8fdbx');
     });
@@ -70,7 +70,7 @@ describe('TeamLogoService', () => {
       });
 
       await service.enrichMatch(match);
-      expect(match.logo).toContain('sky-sports-f1');
+      expect(match.logo).toContain('g8cofl1513623681.png');
     });
   });
 

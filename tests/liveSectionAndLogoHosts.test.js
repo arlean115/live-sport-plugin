@@ -648,7 +648,7 @@ describe('curated artwork references no dead URLs', () => {
     expect(svc.getLeagueLogo('UEFA Europa League')).toContain('2310.png');
     expect(svc.getLeagueLogo('UEFA Conference League')).toContain('20296.png');
     expect(svc.getLeagueLogo('NASCAR')).toContain('ESPN-icon-NASCAR');
-    expect(svc.getLeagueLogo('IndyCar')).toContain('indycar_series');
+    expect(svc.getLeagueLogo('IndyCar')).toContain('m9xm9w1552216863.png');
     expect(svc.getLeagueLogo('NCAA Football')).toContain('ESPN-icon-football-college');
     expect(svc.getLeagueLogo('College Football Playoffs')).toContain('ESPN-icon-football-college');
   });

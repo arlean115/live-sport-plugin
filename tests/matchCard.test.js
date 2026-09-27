@@ -156,6 +156,53 @@ describe('generateMatchCardSvg', () => {
     expect(svg).toContain('\u2026');
     expect(xmlParseError(svg)).toBeNull();
   });
+
+  test('motorsport card renders racing telemetry, kerbing, and aerodynamic hero without broadcaster hijacking', () => {
+    const svg = generateMatchCardSvg({
+      category: 'motorsport',
+      title: 'Truck Series - Fr8 208',
+      league: 'NASCAR Craftsman Truck Series',
+      channelMark: BADGE,
+      channelBadge: BADGE,
+      channel: 'FS1',
+      status: 'upcoming',
+      time: '1:30 PM',
+      shape: 'landscape'
+    });
+
+    expect(svg.startsWith('<svg')).toBe(true);
+    // Should contain telemetry lines and apex kerb polygons
+    expect(svg).toContain('stroke-dasharray="14,24"');
+    expect(svg).toContain('<polygon points="');
+    // Title with hyphen should NOT be split into "VS"
+    expect(svg).not.toContain('>VS<');
+    expect(svg).toContain('TRUCK SERIES');
+    expect(svg).toContain('FR8 208');
+    // ChannelMark must NOT hijack the hero slot (channelBadge is footer only)
+    // Only the footer channelBadge should be rendered as an <image>
+    expect((svg.match(/<image/g) || []).length).toBe(1);
+    expect(svg).toContain('FS1');
+    expect(xmlParseError(svg)).toBeNull();
+  });
+
+  test('motorsport card with leagueBadge renders official series emblem in hero disc', () => {
+    const svg = generateMatchCardSvg({
+      category: 'motorsport',
+      title: 'Formula 1 Bahrain Grand Prix',
+      league: 'Formula 1',
+      leagueBadge: BADGE,
+      status: 'live',
+      shape: 'poster'
+    });
+
+    expect(svg).toContain('width="600" height="889"');
+    expect(svg).toContain('FORMULA 1');
+    expect(svg).toContain('BAHRAIN');
+    expect(svg).toContain('GRAND PRIX');
+    // LeagueBadge in header + hero disc
+    expect((svg.match(/<image/g) || []).length).toBeGreaterThanOrEqual(1);
+    expect(xmlParseError(svg)).toBeNull();
+  });
 });
 
 describe('matchCardUrl', () => {
