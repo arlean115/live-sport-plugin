@@ -22,8 +22,18 @@
  * resolveCache.getOrCreate -> mintVerifiedSources -> provider.resolveStream +
  * verifyStreams, populating the cache of whichever worker answers.
  *
- * Because PM2 spreads connections across workers, a single request warms only
- * one worker: use `--repeat` >= your worker count (`pm2 ls`).
+ * SIZE MATTERS - READ THIS
+ * ------------------------
+ * The DaddyLive catalog is large (roughly 900+ 24/7 channels plus live fixtures),
+ * so a "warm everything" run is ~4000 requests. That cannot finish inside a short
+ * cron interval, and the resulting overlap saturates the resolver - which surfaces
+ * as `The operation was aborted due to timeout` on BOTH the cron and real users.
+ *
+ * The default therefore warms a BOUNDED SLICE and ROTATES it:
+ *   --max <n>   at most n targets per run (default 40; 0 = unlimited, for manual sweeps)
+ *   --rotate    continue where the last run stopped (DEFAULT ON), so successive runs
+ *               cover the whole catalog over time without hammering any one target
+ * The cursor lives in a small state file (see --state), not in the repo.
  *
  * LOOPBACK ONLY
  * -------------
@@ -48,6 +58,7 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 // ---------------------------------------------------------------------------
@@ -59,6 +70,10 @@ Usage: node scripts/prewarm-cron.js [options]
 
   --base <url>         Base URL to hit. Default: $PREWARM_BASE_URL, else
                        http://127.0.0.1:<PORT>. Keep it on loopback.
+  --max <n>            Warm at most n targets this run (default 40). 0 = unlimited.
+  --rotate             Continue from the last run's position (default ON).
+  --no-rotate          Always warm the same first --max targets.
+  --state <path>       Rotation cursor file. Default: <tmpdir>/nuvio-prewarm-cursor.json
   --all                Include every match, not just live/upcoming ones.
   --networks           Only DaddyLive 24/7 network rows (dlv_ch_*).
   --fixtures           Only DaddyLive fixture rows (dlv_*), not dlv_ch_*.
@@ -68,13 +83,16 @@ Usage: node scripts/prewarm-cron.js [options]
   --timeout-ms <n>     Per-request timeout (default 20000).
   --source <name>      Only warm matches having this source (default daddylive).
   --dry-run            List targets + URLs, then stop. Still reads the match list.
-  --offline            With --dry-run, make no network calls at all.
+  --offline            With --dry-run: make no network calls at all.
   -h, --help           Show this help.
 `.trim();
 
 function parseArgs(argv) {
   const opts = {
     base: null,
+    max: 40,
+    rotate: true,
+    state: path.join(os.tmpdir(), 'nuvio-prewarm-cursor.json'),
     all: false,
     networks: false,
     fixtures: false,
@@ -111,6 +129,10 @@ function parseArgs(argv) {
 
     switch (a) {
       case '--base': opts.base = next(); break;
+      case '--max': opts.max = intOf('--max', next(), { min: 0, max: 100000 }); break;
+      case '--rotate': opts.rotate = true; break;
+      case '--no-rotate': opts.rotate = false; break;
+      case '--state': opts.state = String(next()).trim(); break;
       case '--all': opts.all = true; break;
       case '--networks': opts.networks = true; break;
       case '--fixtures': opts.fixtures = true; break;
@@ -170,6 +192,27 @@ function isLoopback(url) {
   } catch (_) {
     return false;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Rotation cursor
+// ---------------------------------------------------------------------------
+
+function readCursor(statePath) {
+  try {
+    const raw = fs.readFileSync(statePath, 'utf8');
+    const n = Number(JSON.parse(raw).cursor);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  } catch (_) {
+    return 0;
+  }
+}
+
+function writeCursor(statePath, cursor) {
+  try {
+    fs.mkdirSync(path.dirname(statePath), { recursive: true });
+    fs.writeFileSync(statePath, JSON.stringify({ cursor, updatedAt: new Date().toISOString() }));
+  } catch (_) { /* rotation is best-effort; never fail the run over it */ }
 }
 
 // ---------------------------------------------------------------------------
@@ -247,8 +290,25 @@ function localFallbackHelpers() {
   };
 }
 
+function kickoffOf(m) {
+  if (!m || !m.date) return 0;
+  const n = Number(m.date);
+  if (Number.isFinite(n) && n > 0) return n;
+  const parsed = Date.parse(String(m.date));
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Build the full candidate pool, ORDERED deterministically so rotation is stable
+ * across runs:
+ *   1. live fixtures, most-popular first, then latest kickoff, then id;
+ *   2. 24/7 network rows, by id.
+ * Fixtures lead because they are the time-critical content; networks are
+ * evergreen, so covering them over several rotations is fine.
+ */
 function selectTargets(matches, opts, helpers) {
-  const selected = [];
+  const fixtures = [];
+  const networks = [];
 
   for (const m of matches) {
     if (!m || !m.id || !Array.isArray(m.sources) || m.sources.length === 0) continue;
@@ -259,7 +319,12 @@ function selectTargets(matches, opts, helpers) {
     if (opts.networks && !isNetwork) continue;
     if (opts.fixtures && isNetwork) continue;
 
-    if (!opts.all && !isNetwork) {
+    if (isNetwork) {
+      networks.push(m);
+      continue;
+    }
+
+    if (!opts.all) {
       // Fixtures: warm only when live (skip replays and not-yet-started events).
       let replay = false;
       try { replay = helpers.isReplayMatch(m); } catch (_) { replay = false; }
@@ -268,11 +333,20 @@ function selectTargets(matches, opts, helpers) {
       try { live = helpers.isMatchLive(m); } catch (_) { live = false; }
       if (!live) continue;
     }
-
-    selected.push(m);
+    fixtures.push(m);
   }
 
-  return selected;
+  fixtures.sort((a, b) => {
+    const ap = a.popular === '1' ? 1 : 0;
+    const bp = b.popular === '1' ? 1 : 0;
+    if (ap !== bp) return bp - ap;
+    const ad = kickoffOf(a), bd = kickoffOf(b);
+    if (ad !== bd) return bd - ad;
+    return String(a.id).localeCompare(String(b.id));
+  });
+  networks.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+
+  return fixtures.concat(networks);
 }
 
 // ---------------------------------------------------------------------------
@@ -358,6 +432,24 @@ async function runPool(items, size, worker) {
   await Promise.all(runners);
 }
 
+/** Slice the pool for this run, honouring --max and the rotation cursor. */
+function sliceWithRotation(pool, opts) {
+  const unlimited = !opts.max || opts.max <= 0;
+  if (unlimited) return { slice: pool, cursor: 0, skipped: 0 };
+
+  if (!opts.rotate || pool.length <= opts.max) {
+    return { slice: pool.slice(0, opts.max), cursor: 0, skipped: Math.max(0, pool.length - opts.max) };
+  }
+
+  const start = readCursor(opts.state) % pool.length;
+  const slice = [];
+  for (let i = 0; i < opts.max && i < pool.length; i++) {
+    slice.push(pool[(start + i) % pool.length]);
+  }
+  const next = (start + opts.max) % pool.length;
+  return { slice, cursor: next, skipped: Math.max(0, pool.length - opts.max) };
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -376,6 +468,7 @@ async function main() {
   console.log(`[prewarm] base       : ${base}`);
   console.log(`[prewarm] source     : ${opts.source}`);
   console.log(`[prewarm] scope      : ${opts.all ? 'all' : 'live/upcoming'}${opts.networks ? ' +networks-only' : ''}${opts.fixtures ? ' +fixtures-only' : ''}`);
+  console.log(`[prewarm] max/run    : ${opts.max > 0 ? opts.max : 'unlimited'}  (rotate: ${opts.rotate ? 'on' : 'off'})`);
   console.log(`[prewarm] repeat     : ${opts.repeat}x per target (set >= PM2 worker count)`);
   console.log(`[prewarm] concurrency: ${opts.concurrency}`);
   console.log(`[prewarm] mode       : ${opts.offline ? 'offline dry-run' : (opts.dryRun ? 'dry-run' : 'live')}`);
@@ -427,8 +520,9 @@ async function main() {
   }
   console.log(`[prewarm] live-check: ${helpers.source}`);
 
-  const targets = selectTargets(matches, opts, helpers);
-  console.log(`[prewarm] selected  : ${targets.length} target(s)`);
+  const pool = selectTargets(matches, opts, helpers);
+  const { slice: targets, cursor, skipped } = sliceWithRotation(pool, opts);
+  console.log(`[prewarm] pool       : ${pool.length} target(s)${skipped > 0 ? ` (warming ${targets.length} this run, ${skipped} deferred to later runs)` : ''}`);
 
   if (targets.length === 0) {
     console.log('[prewarm] Nothing to warm (no matching targets). Exit 0.');
@@ -445,12 +539,21 @@ async function main() {
     process.exit(0);
   }
 
+  // Advance the cursor BEFORE warming: if this run is killed (Ctrl-C, OOM, a
+  // cron timeout) the next run still moves on instead of repeating the same
+  // slice forever, which is what would re-hammer one target set.
+  if (opts.rotate && opts.max > 0 && pool.length > opts.max) writeCursor(opts.state, cursor);
+
   const stats = { warmed: 0, fallbackOnly: 0, failed: 0 };
   await runPool(targets, opts.concurrency, (m) => warmTarget(base, m, opts, stats));
 
   const secs = ((Date.now() - started) / 1000).toFixed(1);
   console.log('[prewarm] ------------------------------------------------');
   console.log(`[prewarm] targets: ${targets.length}  warmed: ${stats.warmed}  fallback-only: ${stats.fallbackOnly}  failed: ${stats.failed}   (${secs}s)`);
+  if (stats.failed > 0) {
+    console.log('[prewarm] note: "failed" = no streams at all (usually the request timed out).');
+    console.log('[prewarm]       A few are normal; a majority points at load - lower --max/concurrency.');
+  }
   if (stats.fallbackOnly > 0) {
     console.log('[prewarm] note: "fallback-only" means the provider served the web-player link');
     console.log('[prewarm]       instead of a minted manifest - that target is NOT warm.');

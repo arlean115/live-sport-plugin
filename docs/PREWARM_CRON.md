@@ -42,12 +42,34 @@ repeating each target it can reach every worker.
    events that are not live yet (using the app's own `isMatchLive` / `isReplayMatch`
    from `src/catalog` when importable, else an equivalent local clock check).
    24/7 network rows are always included in the default scope.
-3. For each target it calls `GET <base>/stream/tv/nuvio_sport_<id>.json` — the exact
+3. **Slices** that pool to at most `--max` targets per run and **rotates** the slice
+   between runs (see §2a), because the full catalog is too large to warm in one tick.
+4. For each target it calls `GET <base>/stream/tv/nuvio_sport_<id>.json` — the exact
    same endpoint a client uses. That drives
    `resolveCache.getOrCreate → mintVerifiedSources → provider.resolveStream + verifyStreams`,
    populating the cache of whichever worker answers.
-4. Reports per target whether a **real manifest URL** came back (`warmed`) or only the
+5. Reports per target whether a **real manifest URL** came back (`warmed`) or only the
    web-player link (`fallback-only` = **not warm**), then prints a summary.
+
+### 2a. Why `--max` + rotation exist (read this)
+
+On a real deployment the DaddyLive catalog is large: a representative run reported
+**988 targets** (fixtures + 24/7 channels). At `--repeat 4` that is **~3952 requests** —
+it cannot finish inside a 2-minute cron interval, so runs overlap and saturate the
+resolver. The symptom is `The operation was aborted due to timeout` appearing for the
+cron **and** for real users.
+
+The defaults address this:
+
+| Option | Default | Meaning |
+| :--- | :--- | :--- |
+| `--max <n>` | **40** | Warm at most `n` targets per run. `0` = unlimited (manual sweeps only). |
+| `--rotate` | **on** | Continue from the last run's position, so successive runs walk the whole pool. |
+| `--no-rotate` | | Always warm the same first `--max` targets. |
+| `--state <path>` | `<tmpdir>/nuvio-prewarm-cursor.json` | Where the rotation cursor is stored. |
+
+Fixtures are ordered first (popular, then latest kickoff), so the time-critical content
+is refreshed most often; evergreen 24/7 channels are covered over several rotations.
 
 ### Loopback is required
 
@@ -68,6 +90,10 @@ So the script defaults to `http://127.0.0.1:<PORT>` and **you should not point i
 node scripts/prewarm-cron.js [options]
 
   --base <url>         Default: $PREWARM_BASE_URL, else http://127.0.0.1:<PORT> (from .env)
+  --max <n>            Target cap per run (default 40). 0 = unlimited
+  --rotate             Continue from the last run's position (default ON)
+  --no-rotate          Always warm the same first --max targets
+  --state <path>       Rotation cursor file (default <tmpdir>/nuvio-prewarm-cursor.json)
   --all                Include every match, not just live/upcoming ones
   --networks           Only 24/7 network rows (dlv_ch_*)
   --fixtures           Only fixture rows (dlv_*)
@@ -104,11 +130,16 @@ Pick **one** of the two methods.
 crontab -e
 ```
 
-Add (adjust the path and `--repeat` to your worker count — see §5):
+Add (adjust the path and `--repeat` to your worker count — see §5). The `flock` wrapper
+is **strongly recommended**: it makes the job skip its turn if the previous run is still
+going, so a slow run can never pile onto the next one.
 
 ```cron
-*/2 * * * * cd /root/nuvio-live-sports && /usr/bin/node scripts/prewarm-cron.js --repeat 4 >> /var/log/nuvio-prewarm.log 2>&1
+*/2 * * * * flock -n /var/lock/nuvio-prewarm.lock -c 'cd /root/nuvio-live-sports && /usr/bin/node scripts/prewarm-cron.js --max 40 --repeat 4' >> /var/log/nuvio-prewarm.log 2>&1
 ```
+
+`flock` ships with `util-linux`, present on standard Ubuntu/Debian images. If you omit it,
+the `--max` cap alone still bounds each run — but overlap becomes possible on a slow day.
 
 Reload/verify:
 
@@ -133,7 +164,7 @@ After=network.target
 [Service]
 Type=oneshot
 WorkingDirectory=/root/nuvio-live-sports
-ExecStart=/usr/bin/node scripts/prewarm-cron.js --repeat 4
+ExecStart=/usr/bin/node scripts/prewarm-cron.js --max 40 --repeat 4
 User=root
 ```
 
@@ -180,10 +211,14 @@ pm2 ls          # count the processes named nuvio-sports
 # e.g. 4 workers -> --repeat 4
 ```
 
-Recommended starting schedule: **every 2 minutes** with `--repeat <workers>`.
-Because the cache TTL is 60 s–10 min, a 2-minute cadence keeps hot DaddyLive targets
-comfortably warm without hammering upstream. Do not go below `*/1` and do not raise
-`--concurrency` above 4.
+Recommended starting schedule: **every 2 minutes** with `--max 40 --repeat <workers>`.
+Because the cache TTL is 60 s–10 min, a 2-minute cadence keeps hot targets comfortably
+warm while rotation walks the rest of the catalog over time. Do not go below `*/1`, do not
+raise `--concurrency` above 4, and keep `--max` low enough that a run finishes well inside
+the interval (40 targets at `--repeat 4` is roughly 60–90 s in the common case).
+
+If runs still overlap, either lower `--max` or increase the interval — do **not** raise
+`--concurrency`.
 
 ---
 
@@ -239,6 +274,7 @@ of a manifest for that target; that specific target is not warm.
 | `FATAL: … HTTP 403` + `loopback_only` | Base URL is not loopback. Use `--base http://127.0.0.1:<PORT>`. |
 | `FATAL: could not reach …` | App not running, or wrong port. Check `pm2 ls` and `PORT` in `.env`. |
 | `selected: 0 target(s)` | No live DaddyLive matches right now. Try `--all` or `--networks`. |
+| Many `failed … aborted due to timeout` | The run is too heavy. Lower `--max` and/or `--concurrency`, and make sure `flock` is in the cron line so runs cannot overlap. |
 | Everything `fallback-only` | The DaddyLive decode/verify step is failing upstream (site structure change, or the VPS IP is being blocked). Run `node scripts/debug-vps-daddylive.js` to locate the failing stage. |
 | Warming works by hand, not from cron | Cron's PATH/`node` differs. Use the absolute `node` path and `cd` into the repo first. |
 | Warm entries vanish within minutes | Expected with a 60 s–10 min TTL; that is exactly why the cron repeats. |
