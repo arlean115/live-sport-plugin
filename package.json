@@ -12,7 +12,9 @@
     "test:sanity": "node scripts/test-e2e-simulated-client.js",
     "test:247": "node scripts/test-247-channels.js",
     "generate:provider": "node scripts/generate-provider.js",
-    "check-sources": "node scripts/check-sources.js"
+    "check-sources": "node scripts/check-sources.js",
+    "prewarm:cron": "node scripts/prewarm-cron.js",
+    "prewarm:cron:dry": "node scripts/prewarm-cron.js --dry-run"
   },
   "dependencies": {
     "acorn": "^8.18.0",
