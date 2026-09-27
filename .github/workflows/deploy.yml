@@ -24,7 +24,6 @@ jobs:
             echo "==> Resetting any broken merge state..."
             git reset --hard HEAD
 
-            echo "==> Recording lockfile hash BEFORE pull..."
             LOCK_BEFORE="$(md5sum package-lock.json 2>/dev/null | awk '{print $1}')"
 
             echo "==> Pulling latest changes from main..."
@@ -32,43 +31,58 @@ jobs:
 
             LOCK_AFTER="$(md5sum package-lock.json 2>/dev/null | awk '{print $1}')"
 
-            # Native-module safety.
+            # ── Zero-downtime rule ────────────────────────────────────────────
+            # The app must keep serving during a deploy, so this workflow never
+            # stops the cluster and never rewrites node_modules underneath it.
             #
-            # This step used to run `npm install` on EVERY deploy, with the app
-            # live. npm install re-extracts native binaries, and the running
-            # workers have them memory-mapped (impit's *.node is loaded from
-            # node_modules/impit-linux-x64-gnu/). Replacing a mapped file under a
-            # live process raises SIGBUS, which kills the worker instantly with no
-            # JS stack - so nothing appears in the app logs and the uncaughtException
-            # handler never runs.
+            # Why that matters: impit is a native NAPI addon
+            # (node_modules/impit-linux-x64-gnu/*.node) and ncc BUNDLES it, so
+            # every worker maps it. `npm install` re-extracts those binaries; a
+            # live worker faulting on a page whose backing file was replaced gets
+            # SIGBUS and dies instantly, with no JS stack - which is why the
+            # crashes never showed up in the app logs. Verified on this host:
+            # every SIGBUS in ~/.pm2/pm2.log landed 40-50s after a push, during
+            # npm install, and both workers died in the same second.
             #
-            # Verified on the VPS: every SIGBUS in ~/.pm2/pm2.log landed 40-50s
-            # after a push, i.e. during npm install, and the two workers died in the
-            # same second because they share the same file.
+            # So a normal deploy is: pull -> build -> rolling reload. Nothing is
+            # killed; pm2 reload restarts workers one at a time, so the cluster
+            # keeps answering requests throughout.
             #
-            # So: only install when the lockfile actually changed, and when it did,
-            # stop the app first so nothing holds the old binary mapped.
+            # A dependency change is the one case that genuinely needs install,
+            # and it cannot be done safely under a live cluster. Rather than
+            # silently risking SIGBUS kills, the deploy REFUSES and leaves the
+            # running app untouched, printing the manual command to run.
             if [ "$LOCK_BEFORE" != "$LOCK_AFTER" ]; then
-              echo "==> package-lock.json changed -> installing dependencies"
-              echo "    (stopping the app first so no worker holds a mapped .node file)"
-              pm2 stop nuvio-sports || true
-
-              echo "==> Installing dependencies (sharp is required for raster posters)..."
-              npm install --no-audit --no-fund
-
-              echo "==> Building distribution bundle..."
-              npm run build
-
-              echo "==> Starting PM2 cluster..."
-              pm2 start nuvio-sports
-            else
-              echo "==> package-lock.json unchanged -> skipping npm install"
-              echo "    (avoids rewriting mapped native modules; no SIGBUS risk)"
-              npm run build
-              echo "==> Reloading PM2 cluster with zero downtime..."
-              pm2 reload nuvio-sports
+              echo ""
+              echo "================================================================"
+              echo "  DEPENDENCIES CHANGED - deploy paused on purpose"
+              echo "================================================================"
+              echo "  package-lock.json changed, so node_modules must be updated."
+              echo "  That rewrites native modules which live workers have mapped,"
+              echo "  and doing it under traffic SIGBUS-kills them."
+              echo ""
+              echo "  The running app was NOT touched. It is still serving the"
+              echo "  previous code, with no downtime."
+              echo ""
+              echo "  Finish this deploy by hand (brief restart, done deliberately):"
+              echo "    cd /root/nuvio-live-sports && pm2 stop nuvio-sports \\"
+              echo "      && npm install --no-audit --no-fund && npm run build \\"
+              echo "      && pm2 start nuvio-sports && pm2 save"
+              echo "================================================================"
+              echo ""
+              exit 1
             fi
 
-            echo "==> Deployment complete!"
+            echo "==> Dependencies unchanged - skipping npm install (nothing kills workers)."
+
+            echo "==> Building distribution bundle..."
+            npm run build
+
+            echo "==> Reloading PM2 cluster (rolling - workers restart one at a time)..."
+            pm2 reload nuvio-sports
+
+            echo "==> Deployment complete. Cluster stayed up throughout."
             echo "==> Health:"
             curl -s -o /dev/null -w '    manifest http=%{http_code} in %{time_total}s\n' http://127.0.0.1:7000/manifest.json || true
+            echo "==> Worker restarts (should be unchanged from before this deploy):"
+            pm2 jlist 2>/dev/null | tr ',' '\n' | grep -o '"restart_time":[0-9]*' | sed 's/.*://' | paste -sd' ' - || true
