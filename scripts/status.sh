@@ -8,19 +8,25 @@
 #   bash scripts/status.sh
 #
 # Four questions, answered in words rather than JSON:
-#   1. Is the app responding, and is its response actually being served?
-#   2. Do DaddyLive streams actually resolve right now?
-#   3. Is the server under memory pressure?  (this is what broke it)
-#   4. Are the workers running, and how many restarts have they had?
+#   1. Are the workers running, how much memory do they hold, and are they
+#      restarting for a reason?
+#   2. Is the app responding on loopback?
+#   3. Do DaddyLive streams actually resolve right now?
+#   4. Is the server under memory pressure?  (this is what broke it)
 #
-# MEASUREMENT NOTE (important):
-#   Timing is taken on LOOPBACK (127.0.0.1), never on the public hostname.
-#   Going out to nuviosports.xyz makes the number include Cloudflare and a cold
-#   TLS handshake, which produced a bogus "18s - users are waiting" on an app
-#   that answered in 0.58s. A health check must measure the app, not the path.
+# MEASUREMENT NOTES (both learned from real false alarms):
+#   * Timing is taken on LOOPBACK, never the public hostname. Going out to
+#     nuviosports.xyz includes Cloudflare and a cold TLS handshake, which once
+#     produced a bogus "18s - users are waiting" on an app that answered in
+#     0.58s. A health check must measure the app, not the path.
+#   * Only nuvio-sports processes are counted. `pm2 jlist` also lists MODULES
+#     (pm2-logrotate), and counting those made a 2-worker cluster report 3.
+#   * A restart is not automatically "dying". PM2 recycles a worker that crosses
+#     max_memory_restart, which is healthy behaviour. The script therefore
+#     reports memory against the cap and says which is happening.
 #
-# Run it twice a few minutes apart: the worker section compares against the
-# previous run, so only a second run can say whether restarts are climbing.
+# Run it twice a few minutes apart: the restart check compares against the
+# previous run, so only a second run can say whether the count is climbing.
 #
 # Colour is disabled automatically when output is piped.
 # Exit: 0 = all good, 1 = something needs attention.
@@ -36,6 +42,7 @@ if [ -z "$PORT_CFG" ] && [ -f .env ]; then
 fi
 PORT_CFG="${PORT_CFG:-7000}"
 BASE="http://127.0.0.1:${PORT_CFG}"
+APP_NAME="${PM2_NAME:-nuvio-sports}"
 
 PROBLEMS=0
 if [ -t 1 ]; then
@@ -51,52 +58,87 @@ line() { printf '\n%s%s%s\n' "$C_HDR" "$*" "$C_OFF"; }
 echo ""
 echo "======================================================="
 echo "  NUVIO HEALTH CHECK     $(date '+%Y-%m-%d %H:%M:%S')"
-echo "  checking loopback port ${PORT_CFG} (not the public host)"
+echo "  loopback port ${PORT_CFG}   app ${APP_NAME}"
 echo "======================================================="
 
-# ------------------------------------------------- 0. workers + restarts
-# Done FIRST: if workers are restarting, that explains everything below, so it
-# should not be reported as a footnote after a confusing timing number.
+# ------------------------------------------------- 1. workers
 line "1. Are the workers running, and restarting?"
-if command -v pm2 >/dev/null 2>&1; then
+if command -v pm2 >/dev/null 2>&1 && command -v node >/dev/null 2>&1; then
   STATE_FILE="/tmp/nuvio-status-prev"
-  # Count workers from the process LIST, not from text matches.
-  # The previous version grepped for "pm_id" and counted hits, but a real
-  # process object contains that pattern more than once per process (and other
-  # fields match too), so it reported 4 for a 2-worker cluster - which sent a
-  # deploy into a needless restart. `pm2 jlist` is a JSON array, one object per
-  # process, so counting top-level objects is the reliable way.
-  if command -v node >/dev/null 2>&1; then
-    CUR="$(pm2 jlist 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const a=JSON.parse(d);process.stdout.write(String(Array.isArray(a)?a.length:0))}catch(_){process.stdout.write('?')}})")"
+  # One JSON object per process; MODULES are excluded by matching pm2_env.name.
+  SNAP="$(pm2 jlist 2>/dev/null | NUVIO_APP_NAME="$APP_NAME" node -e "
+let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{
+  let a=[];try{a=JSON.parse(d)}catch(_){}
+  const wants=process.env.NUVIO_APP_NAME;
+  const app=a.filter(p=>p&&p.pm2_env&&p.pm2_env.name===wants);
+  const mods=a.filter(p=>p&&p.pm2_env&&p.pm2_env.pmx_module);
+  const row=p=>{
+    const mem=Math.round(((p.monit&&p.monit.memory)||0)/1048576);
+    const cap=Math.round(((p.pm2_env&&p.pm2_env.max_memory_restart)||0)/1048576);
+    return {id:(p.pm2_env&&p.pm2_env.pm_id),mem,cap,rs:(p.pm2_env&&p.pm2_env.restart_time)||0};
+  };
+  const r=app.map(row);
+  process.stdout.write(JSON.stringify({
+    workers:r.length,
+    total:r.reduce((s,x)=>s+x.rs,0),
+    rows:r,
+    modules:mods.map(m=>m.pm2_env.name),
+    instances:(app[0]&&app[0].pm2_env&&app[0].pm2_env.instances)||null
+  }));
+});" 2>/dev/null)"
+
+  W=$(echo "$SNAP" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{console.log(JSON.parse(d).workers)}catch(_){console.log('?')}})")
+  TOT=$(echo "$SNAP" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{console.log(JSON.parse(d).total)}catch(_){console.log('?')}})")
+  MODS=$(echo "$SNAP" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const m=JSON.parse(d).modules;console.log(m.length?m.join(','):'none')}catch(_){console.log('?')}})")
+  INST=$(echo "$SNAP" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{console.log(String(JSON.parse(d).instances))}catch(_){console.log('?')}})")
+  echo "$SNAP" | node -e "
+let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{
+  try{
+    const s=JSON.parse(d);
+    s.rows.forEach(r=>{
+      const pct = r.cap ? Math.round(r.mem/r.cap*100) : 0;
+      const flag = (r.cap && r.mem >= r.cap*0.9) ? '  <-- at memory cap (PM2 recycles)' : '';
+      console.log('  worker '+r.id+': '+r.mem+'MB / '+r.cap+'MB cap ('+pct+'%), restarts='+r.rs+flag);
+    });
+  }catch(_){}
+});"
+
+  echo "  workers in pm2 : ${W}   (configured instances: ${INST})"
+  echo "  restart totals : ${TOT}"
+  echo "  pm2 modules    : ${MODS}   (modules are not app workers)"
+
+  AT_CAP=$(echo "$SNAP" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const s=JSON.parse(d);console.log(s.rows.some(r=>r.cap&&r.mem>=r.cap*0.9)?'yes':'no')}catch(_){console.log('?')}})")
+  if [ "$W" = "0" ] || [ "$W" = "?" ]; then
+    bad "no ${APP_NAME} workers are running - is pm2 started? (pm2 status)"
+  elif [ "$INST" != "?" ] && [ "$INST" != "null" ] && [ "$W" != "$INST" ]; then
+    warn "running ${W} worker(s) but configured for ${INST} - drift? (pm2 jlist | grep instances)"
   else
-    CUR="$(pm2 jlist 2>/dev/null | grep -c '"pm_id":[0-9]')"
+    ok "${W} workers running, matching the configured instance count"
   fi
-  if command -v node >/dev/null 2>&1; then
-    PERW="$(pm2 jlist 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const a=JSON.parse(d);process.stdout.write(a.map(p=>(p.pm2_env&&p.pm2_env.restart_time)||0).join(' '))}catch(_){process.stdout.write('unknown')}})")"
-    RESTARTS="$(echo "$PERW" | awk '{s=0; for(i=1;i<=NF;i++) s+=$i; print s}')"
-  else
-    RESTARTS="$(pm2 jlist 2>/dev/null | grep -o '"restart_time":[0-9]*' | sed 's/.*://' | paste -sd+ - | bc 2>/dev/null)"
-    PERW="$(pm2 jlist 2>/dev/null | grep -o '"restart_time":[0-9]*' | sed 's/.*://' | paste -sd' ' -)"
+
+  if [ "$AT_CAP" = "yes" ]; then
+    warn "a worker is at its memory cap, so PM2 will recycle it soon - that is the"
+    warn "restart count rising. Raise --max-memory-restart or reduce per-worker load."
   fi
-  [ -n "$RESTARTS" ] || RESTARTS='?'
-  echo "  workers running : ${CUR}"
-  echo "  restarts each   : ${PERW:-unknown}"
-  echo "  restarts total  : ${RESTARTS}   (cumulative since last pm2 delete)"
 
   if [ -f "$STATE_FILE" ]; then
     PREV="$(cat "$STATE_FILE" 2>/dev/null || echo '?')"
     case "$PREV" in ''|*[!0-9]*) PREV='?' ;; esac
-    if [ "$RESTARTS" != '?' ] && [ "$PREV" != '?' ] && [ "$RESTARTS" -gt "$PREV" ] 2>/dev/null; then
-      bad "restarts INCREASED since last check (${PREV} -> ${RESTARTS}) - workers are still dying"
+    if [ "$TOT" != '?' ] && [ "$PREV" != '?' ] && [ "$TOT" -gt "$PREV" ] 2>/dev/null; then
+      if [ "$AT_CAP" = "yes" ]; then
+        warn "restarts rose (${PREV} -> ${TOT}), explained by the memory cap above - not a crash"
+      else
+        bad "restarts rose (${PREV} -> ${TOT}) with no memory-cap cause - investigate"
+      fi
     else
-      ok "restarts unchanged since last check (${PREV}) - workers are stable"
+      ok "restarts unchanged since last check (${PREV})"
     fi
   else
     echo "  (first run - run again in a few minutes to see whether restarts climb)"
   fi
-  echo "$RESTARTS" > "$STATE_FILE" 2>/dev/null || true
+  echo "$TOT" > "$STATE_FILE" 2>/dev/null || true
 else
-  warn "pm2 not on PATH; skipping worker check"
+  warn "pm2 or node not on PATH; skipping worker check"
 fi
 
 # ------------------------------------------------- 2. app responding
@@ -115,7 +157,7 @@ if [ "$CODE" != "200" ]; then
 elif awk -v t="$T" 'BEGIN{exit !(t<3)}'; then
   ok "manifest served 200 in ${T}s"
 elif awk -v t="$T" 'BEGIN{exit !(t<10)}'; then
-  warn "manifest slow: ${T}s on loopback (want under 1s; still warming up?)"
+  warn "manifest slow: ${T}s on loopback (want under 1s)"
 else
   bad "manifest very slow even on loopback: ${T}s"
 fi
