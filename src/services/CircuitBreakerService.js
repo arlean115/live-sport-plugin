@@ -1,5 +1,10 @@
 const CircuitBreaker = require('opossum');
 
+// Per-call budget for every wrapped provider operation. Exported so callers
+// that set their own inner timeout (DaddyLive's schedule fetch) can stay
+// safely BELOW it, instead of silently exceeding it and being cut short.
+const BREAKER_TIMEOUT_MS = 20000;
+
 class CircuitBreakerService {
   constructor() {
     this.breakers = new Map();
@@ -16,7 +21,7 @@ class CircuitBreakerService {
     }
 
     const options = {
-      timeout: 20000, // If function takes longer than 20 seconds, trigger a failure
+      timeout: BREAKER_TIMEOUT_MS, // If function takes longer than this, trigger a failure
       errorThresholdPercentage: 50, // When 50% of requests fail, trip the circuit
       // Was 5 minutes. That made a short upstream wobble blackout a provider for
       // the full window even after it recovered (reproduced: 3 failures -> 0 real
@@ -76,3 +81,4 @@ class CircuitBreakerService {
 }
 
 module.exports = CircuitBreakerService;
+module.exports.BREAKER_TIMEOUT_MS = BREAKER_TIMEOUT_MS;

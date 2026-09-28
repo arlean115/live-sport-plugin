@@ -8,6 +8,7 @@ const ChannelCountryService = require('../services/ChannelCountryService');
 const { BASE_URL } = require('../config');
 const cheerio = require('cheerio');
 const os = require('os');
+const { BREAKER_TIMEOUT_MS } = require('../services/CircuitBreakerService');
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36';
 
@@ -91,7 +92,15 @@ function resolveSyncTimeoutMs() {
   // 6000. Restored rather than replaced: the original budget was known-good,
   // and 6000 is what made DaddyLive fail first under load.
   const baseMs = parseInt(process.env.SYNC_TIMEOUT_BASE_MS, 10) || 12000;
-  const maxMs = parseInt(process.env.SYNC_TIMEOUT_MAX_MS, 10) || 25000;
+  // The circuit breaker aborts a wrapped call at BREAKER_TIMEOUT_MS, so an
+  // inner timeout at or above it is silently truncated - the configured
+  // ceiling would be unreachable and the breaker, not this setting, would
+  // decide the real budget. Keep a safety margin below it so the inner abort
+  // always wins and the breaker stays a genuine last resort.
+  const BREAKER_SAFETY_MARGIN_MS = 2000;
+  const breakerCeiling = Math.max(1000, BREAKER_TIMEOUT_MS - BREAKER_SAFETY_MARGIN_MS);
+  const configured = parseInt(process.env.SYNC_TIMEOUT_MAX_MS, 10) || 25000;
+  const maxMs = Math.min(configured, breakerCeiling);
 
   let load = 0;
   try {

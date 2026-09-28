@@ -1,5 +1,5 @@
 /**
- * Regression test for the DaddyLive sync-fetch timeout baseline.
+ * Regression test for the DaddyLive sync-fetch timeout baseline and its ceiling.
  *
  * History this pins down: commit f15846b (2026-09-27, "prioritize dlive.sx domain
  * and tighten schedule fetch timeouts") lowered these three fetches from
@@ -12,8 +12,12 @@
  * to fail under load, so it alone disappeared from the catalog while every other
  * source stayed present.
  *
- * These tests assert the restored baseline and the load-scaling behaviour. They
- * are pure unit tests - no network.
+ * Also pins the ceiling to the circuit breaker: fetchSchedule/fetchChannels are
+ * wrapped with a per-call breaker timeout, and an inner timeout at or above it is
+ * silently truncated. The cap must stay below the breaker so the inner abort is
+ * always the one that fires.
+ *
+ * Pure unit tests - no network.
  */
 const fs = require('fs');
 const path = require('path');
@@ -22,6 +26,7 @@ const os = require('os');
 
 const SRC = path.join(__dirname, '..', 'src', 'providers', 'DaddyLiveProvider.js');
 const source = fs.readFileSync(SRC, 'utf8');
+const { BREAKER_TIMEOUT_MS } = require('../src/services/CircuitBreakerService');
 
 /** Load resolveSyncTimeoutMs in isolation with a controllable os.loadavg + env. */
 function loadHelper({ env = {}, load = 0, loadThrows = false } = {}) {
@@ -41,16 +46,16 @@ function loadHelper({ env = {}, load = 0, loadThrows = false } = {}) {
     Math,
     Number,
     console,
+    BREAKER_TIMEOUT_MS,
   };
   vm.createContext(sandbox);
   vm.runInContext(body + '; this.__fn = resolveSyncTimeoutMs;', sandbox);
   return sandbox.__fn;
 }
 
-describe('DaddyLive sync timeout baseline', () => {
-  test('idle box uses the restored 12000ms baseline (not the 6000 regression)', () => {
-    const fn = loadHelper({ env: {}, load: 0 });
-    expect(fn()).toBe(12000);
+describe('baseline restored after the f15846b regression', () => {
+  test('idle box uses the restored 12000ms baseline, not the 6000 regression', () => {
+    expect(loadHelper({ env: {}, load: 0 })()).toBe(12000);
   });
 
   test('never returns below 12000, so an idle box is never worse than pre-f15846b', () => {
@@ -60,58 +65,82 @@ describe('DaddyLive sync timeout baseline', () => {
   });
 
   test('adds headroom as load rises', () => {
-    const idle = loadHelper({ env: {}, load: 0 })();
-    const busy = loadHelper({ env: {}, load: 4 })();
-    expect(busy).toBeGreaterThan(idle);
-    expect(busy).toBe(12000 + 4 * 2000);
+    expect(loadHelper({ env: {}, load: 0 })()).toBe(12000);
+    // load 3 -> 12000 + 6000 = 18000, still under the breaker ceiling.
+    expect(loadHelper({ env: {}, load: 3 })()).toBe(12000 + 3 * 2000);
+    // load 4 would be exactly the breaker ceiling, so the safety margin clamps
+    // it down to 18000 - which is the whole point of the coupling.
+    expect(loadHelper({ env: {}, load: 4 })()).toBe(18000);
   });
 
-  test('clamps to the 25000ms ceiling under extreme load', () => {
-    expect(loadHelper({ env: {}, load: 100 })()).toBe(25000);
+  test('the observed production load (4.94) is clamped to just under the breaker', () => {
+    const v = loadHelper({ env: {}, load: 4.94 })();
+    // The raw formula would give 21880, which EXCEEDS the 20s breaker and would
+    // therefore be silently truncated. Both facts are pinned: the formula is what
+    // drives the value, and the clamp is what makes it usable.
+    expect(Math.round(12000 + 4.94 * 2000)).toBe(21880);
+    expect(v).toBe(BREAKER_TIMEOUT_MS - 2000);
+    expect(v).toBeLessThan(BREAKER_TIMEOUT_MS);
   });
 
   test('honours SYNC_TIMEOUT_BASE_MS', () => {
     expect(loadHelper({ env: { SYNC_TIMEOUT_BASE_MS: '15000' }, load: 0 })()).toBe(15000);
   });
 
-  test('honours SYNC_TIMEOUT_MAX_MS', () => {
-    expect(loadHelper({ env: { SYNC_TIMEOUT_MAX_MS: '13000' }, load: 9 })()).toBe(13000);
-  });
-
-  test('DADDYLIVE_SYNC_TIMEOUT_MS overrides everything', () => {
-    expect(loadHelper({ env: { DADDYLIVE_SYNC_TIMEOUT_MS: '9999' }, load: 9 })()).toBe(9999);
-  });
-
   test('survives a loadavg that throws / is unavailable', () => {
-    // Must fall back to the baseline rather than NaN or a crash.
     expect(loadHelper({ env: {}, loadThrows: true })()).toBe(12000);
   });
 });
 
-describe('the three sync fetches use the helper, and resolve-path ones do not', () => {
-  test('exactly 3 call sites', () => {
-    const hits = (source.match(/AbortSignal\.timeout\(resolveSyncTimeoutMs\(\)\)/g) || []).length;
-    expect(hits).toBe(3);
+describe('ceiling is coupled to the circuit breaker, never above it', () => {
+  test('huge load clamps below the breaker timeout (inner abort must win)', () => {
+    const v = loadHelper({ env: {}, load: 1000 })();
+    expect(v).toBeLessThan(BREAKER_TIMEOUT_MS);
   });
 
-  test('resolve-path fetches keep their literal 6000 (bounded by handleStream)', () => {
-    const hits = (source.match(/AbortSignal\.timeout\(6000\)/g) || []).length;
-    expect(hits).toBe(4);
+  test('the clamp is exactly breaker timeout minus the safety margin', () => {
+    const v = loadHelper({ env: {}, load: 1000 })();
+    expect(v).toBe(BREAKER_TIMEOUT_MS - 2000);
   });
 
-  test('no sync-path fetch was left at the flat 6000 regression value', () => {
-    // The three sync fetches sit in the constructor's fetchSchedule/fetchChannels
-    // closures; assert none of them still carries a hardcoded 6000.
+  test('an explicit SYNC_TIMEOUT_MAX_MS above the breaker is still clamped down', () => {
+    const v = loadHelper({ env: { SYNC_TIMEOUT_MAX_MS: '60000' }, load: 1000 })();
+    expect(v).toBeLessThan(BREAKER_TIMEOUT_MS);
+  });
+
+  test('an explicit SYNC_TIMEOUT_MAX_MS below the breaker is respected', () => {
+    expect(loadHelper({ env: { SYNC_TIMEOUT_MAX_MS: '13000' }, load: 9 })()).toBe(13000);
+  });
+
+  test('DADDYLIVE_SYNC_TIMEOUT_MS still overrides everything', () => {
+    expect(loadHelper({ env: { DADDYLIVE_SYNC_TIMEOUT_MS: '9999' }, load: 900 })()).toBe(9999);
+  });
+
+  test('the breaker timeout is exported so this coupling cannot drift silently', () => {
+    expect(typeof BREAKER_TIMEOUT_MS).toBe('number');
+    expect(BREAKER_TIMEOUT_MS).toBeGreaterThan(0);
+  });
+});
+
+describe('call sites are wired correctly', () => {
+  test('exactly 3 sync fetches use the helper', () => {
+    expect((source.match(/AbortSignal\.timeout\(resolveSyncTimeoutMs\(\)\)/g) || []).length).toBe(3);
+  });
+
+  test('the 4 resolve-path fetches keep their literal 6000 (bounded by handleStream)', () => {
+    expect((source.match(/AbortSignal\.timeout\(6000\)/g) || []).length).toBe(4);
+  });
+
+  test('no sync fetch was left at the flat 6000 regression value', () => {
     const ctorStart = source.indexOf('constructor(opts = {})');
     const ctorEnd = source.indexOf('clearCache(sourceId)');
     const ctor = source.slice(ctorStart, ctorEnd);
     expect(ctor).not.toMatch(/AbortSignal\.timeout\(6000\)/);
     expect((ctor.match(/AbortSignal\.timeout\(resolveSyncTimeoutMs\(\)\)/g) || []).length).toBe(3);
   });
-});
 
-describe('os is required for the load lookup', () => {
-  test("requires 'os' exactly once", () => {
+  test("requires 'os' exactly once and imports the breaker timeout", () => {
     expect((source.match(/require\('os'\)/g) || []).length).toBe(1);
+    expect(source).toMatch(/BREAKER_TIMEOUT_MS \} = require\('\.\.\/services\/CircuitBreakerService'\)/);
   });
 });
