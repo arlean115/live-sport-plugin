@@ -2,7 +2,7 @@ const axios = require('axios');
 
 const sources = [
   { name: 'WatchFooty', url: 'https://api.watchfooty.st/api/v1/matches/football' },
-  { name: 'TimStreams', url: 'https://timst.cfd/api/live-upcoming' },
+  { name: 'TimStreams', url: 'https://timst.top/api/live-upcoming' },
   { name: 'StreamSports', url: 'https://api.cdnlivetv.is/matches' },
   { name: 'StreamSports99', url: 'https://api.cdnlivetv.is/api/v1/events/sports/?user=streamsports99&plan=vip' },
   { name: 'Streamic', url: 'https://streamic.st/api/J.php' },

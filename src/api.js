@@ -219,7 +219,7 @@ async function getAllMatches() {
 
   // 5. Fetch from TimStreams (vixnuvew API)
   try {
-    const tsRes_req = await request('https://timst.cfd/api/live-upcoming', { headersTimeout: 7000, bodyTimeout: 7000 });
+    const tsRes_req = await request('https://timst.top/api/live-upcoming', { headersTimeout: 7000, bodyTimeout: 7000 });
     const tsRes = {
       data: await tsRes_req.body.text().then(t => { try { return JSON.parse(t); } catch(e) { return t; } })
     };
