@@ -202,7 +202,8 @@ app.get('/api/options', (req, res) => {
     englishAlwaysFirst: true,
     replayFilters: [
       { value: 'all', label: 'All replays' },
-      { value: 'mainstream', label: 'Mainstream only' }
+      { value: 'mainstream', label: 'Mainstream only' },
+      { value: 'disabled', label: 'Hide replays' }
     ]
   });
 });
@@ -935,6 +936,9 @@ app.get('/:config?/manifest.json', (req, res, next) => {
         // Keep all replay catalogs in manifest so Nuvio Collections can query them!
         // Because they have isRequired: true on 'skip', Stremio/Nuvio will NOT display them on the Home screen.
         if (c.id === 'nuvio_sports_replays' || c.id.startsWith('nuvio_sports_replays_')) {
+          if (parsedConfig.replayFilter === 'disabled') {
+            return false;
+          }
           return true;
         }
 

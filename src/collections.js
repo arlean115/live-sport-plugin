@@ -170,6 +170,10 @@ function generateCollections(baseUrl = BASE_URL, config = '', options = {}) {
   if (options && options.replayFilter) overrides.replayFilter = String(options.replayFilter);
   if (options && options.languages) overrides.languages = String(options.languages);
 
+  if (overrides.replayFilter === 'disabled') {
+    return [];
+  }
+
   // The rows' manifestUrl must carry the personalization, but it is written
   // into EVERY folder/source pair (48 of them), so the encoding matters: a
   // full base64 config segment repeated 48x pushed the exported document past

@@ -746,6 +746,7 @@
           <select id="replayFilter">
             <option value="all">All replays</option>
             <option value="mainstream">Mainstream only</option>
+            <option value="disabled">Hide replays</option>
           </select>
           <p class="hint">All replays keeps every fixture the providers list. Mainstream only hides the ones nobody outside the local region follows.</p>
 
@@ -1013,7 +1014,7 @@
     }
 
     if (replayFilterSelect) {
-      replayFilterSelect.value = existingConfig.replayFilter === 'mainstream' ? 'mainstream' : 'all';
+      replayFilterSelect.value = existingConfig.replayFilter === 'disabled' ? 'disabled' : (existingConfig.replayFilter === 'mainstream' ? 'mainstream' : 'all');
     }
 
     if (webStreamsSelect) {
@@ -1062,7 +1063,7 @@
         { k: 'Sources', v: selectedSources.length === sourceCheckboxes.length ? 'All' : String(selectedSources.length) },
         { k: 'Timezone', v: tz || 'n/a' },
         { k: 'Languages', v: languages || 'English only' },
-        { k: 'Replays', v: replayFilter === 'mainstream' ? 'Mainstream' : 'All' },
+        { k: 'Replays', v: replayFilter === 'disabled' ? 'Hidden' : (replayFilter === 'mainstream' ? 'Mainstream' : 'All') },
         { k: 'Web Streams', v: webStreams === 'disabled' ? 'Hidden' : 'Included' }
       ];
       configSummary.innerHTML = items

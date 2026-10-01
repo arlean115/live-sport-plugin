@@ -938,6 +938,10 @@ async function buildReplayHubMeta(id, config = {}) {
 // ─── Handlers ─────────────────────────────────────────────────────────────────
 
 async function handleReplayCatalog(id, extra, config, reqType = 'tv') {
+  if (config && config.replayFilter === 'disabled') {
+    return { metas: [] };
+  }
+
   const sub = id.replace('nuvio_sports_replays_', '');
   
   // Known sports for replays
