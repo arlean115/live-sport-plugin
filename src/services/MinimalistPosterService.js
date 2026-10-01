@@ -784,7 +784,7 @@ function generateMatchCardSvg(spec = {}) {
       parts.push(badgeImage(leagueBadge, margin, headerY - 12, 16));
       lx = margin + 24;
     }
-    parts.push('<text x="' + lx + '" y="' + (headerY + 1) + '" font-family="' + CARD_COND + '" font-size="14" font-weight="700" letter-spacing="2.2" fill="' + leagueAccent + '">' + escapeXml(label) + '</text>');
+    parts.push('<text x="' + lx + '" y="' + (headerY + 1) + '" font-family="' + CARD_COND + '" font-size="16" font-weight="700" letter-spacing="2.2" fill="' + leagueAccent + '">' + escapeXml(label) + '</text>');
   }
 
   // ── Header: status pill (right) - status word only; the score lives in the hero slot ──
@@ -799,19 +799,19 @@ function generateMatchCardSvg(spec = {}) {
 
     // Status-only pill. A score is never squeezed in here: when a score exists
     // it takes the hero slot, so the pill stays a compact status chip.
-    const pillW = 30 + (conf.dot ? dotR * 2 + 8 : 0) + conf.t.length * 8.8;
-    const pillH = 26;
+    const pillW = 34 + (conf.dot ? dotR * 2 + 8 : 0) + conf.t.length * 10.5;
+    const pillH = 28;
     const pillY = headerY - pillH / 2;
     const pillX = w - margin - pillW;
     const pillStroke = status === 'live' ? 'rgba(255,90,90,0.5)' : 'rgba(255,154,69,0.45)';
     const pillFill = status === 'live' ? 'rgba(255,60,60,0.14)' : 'rgba(255,122,26,0.12)';
     parts.push('<rect x="' + pillX.toFixed(1) + '" y="' + pillY.toFixed(1) + '" width="' + pillW.toFixed(1) + '" height="' + pillH + '" rx="' + (pillH / 2) + '" fill="' + pillFill + '" stroke="' + pillStroke + '" stroke-width="1"/>');
-    let px = pillX + 15;
+    let px = pillX + 17;
     if (conf.dot) {
       parts.push('<circle cx="' + (px + dotR).toFixed(1) + '" cy="' + headerY + '" r="' + dotR + '" fill="' + conf.dotColor + '"/>');
       px += dotR * 2 + 8;
     }
-    parts.push('<text x="' + px.toFixed(1) + '" y="' + (headerY + 4).toFixed(1) + '" font-family="' + CARD_SANS + '" font-size="12" font-weight="800" letter-spacing="1.4" fill="' + conf.color + '">' + escapeXml(conf.t) + '</text>');
+    parts.push('<text x="' + px.toFixed(1) + '" y="' + (headerY + 5).toFixed(1) + '" font-family="' + CARD_SANS + '" font-size="14" font-weight="800" letter-spacing="1.4" fill="' + conf.color + '">' + escapeXml(conf.t) + '</text>');
 
   }
 
@@ -877,6 +877,15 @@ function generateMatchCardSvg(spec = {}) {
       if (otherName) {
         parts.push('<text x="400" y="350" font-family="' + CARD_SANS + '" font-size="15" font-weight="600" letter-spacing="2" fill="rgba(255,255,255,0.60)" text-anchor="middle">' + escapeXml(otherName.toUpperCase()) + '</text>');
       }
+      parts.push('<line x1="' + margin + '" y1="392" x2="' + (w - margin) + '" y2="392" stroke="rgba(255,255,255,0.14)" stroke-width="1"/>');
+    } else if (available === 0 && catKey === 'tennis' && team1 && team2) {
+      // ── Landscape Tennis: Monogram Crests & Racket Icon ──
+      parts.push(crest(200, 188, 104, null, team1));
+      parts.push(crest(600, 188, 104, null, team2));
+      parts.push('<circle cx="400" cy="188" r="40" fill="rgba(255,255,255,0.04)" stroke="rgba(132, 204, 22, 0.4)" stroke-width="1.5"/>');
+      parts.push('<g transform="translate(378, 166) scale(0.6)"><path d="M12 18 Q36 36 12 54" stroke="#f8fafc" stroke-width="3" fill="none"/><path d="M60 18 Q36 36 60 54" stroke="#f8fafc" stroke-width="3" fill="none"/><circle cx="36" cy="36" r="32" stroke="#84cc16" stroke-width="3" fill="rgba(132, 204, 22, 0.15)"/></g>');
+      parts.push(teamName(200, 346, team1, 25));
+      parts.push(teamName(600, 346, team2, 25));
       parts.push('<line x1="' + margin + '" y1="392" x2="' + (w - margin) + '" y2="392" stroke="rgba(255,255,255,0.14)" stroke-width="1"/>');
     } else {
       // No fixture crests. If a channel logo exists it becomes the hero mark
@@ -980,6 +989,15 @@ function generateMatchCardSvg(spec = {}) {
         parts.push('<text x="300" y="462" font-family="' + CARD_SANS + '" font-size="15" font-weight="600" letter-spacing="2" fill="rgba(255,255,255,0.60)" text-anchor="middle">' + escapeXml(otherName.toUpperCase()) + '</text>');
       }
       parts.push('<line x1="' + margin + '" y1="532" x2="' + (w - margin) + '" y2="532" stroke="rgba(255,255,255,0.14)" stroke-width="1"/>');
+    } else if (available === 0 && catKey === 'tennis' && team1 && team2) {
+      // ── Poster Tennis: Monogram Crests & Racket Icon ──
+      parts.push(crest(186, 296, 78, null, team1));
+      parts.push(crest(414, 296, 78, null, team2));
+      parts.push('<circle cx="300" cy="296" r="34" fill="rgba(255,255,255,0.04)" stroke="rgba(132, 204, 22, 0.4)" stroke-width="1.5"/>');
+      parts.push('<g transform="translate(282, 278) scale(0.5)"><path d="M12 18 Q36 36 12 54" stroke="#f8fafc" stroke-width="3" fill="none"/><path d="M60 18 Q36 36 60 54" stroke="#f8fafc" stroke-width="3" fill="none"/><circle cx="36" cy="36" r="32" stroke="#84cc16" stroke-width="3" fill="rgba(132, 204, 22, 0.15)"/></g>');
+      parts.push(teamName(186, 432, team1, 24));
+      parts.push(teamName(414, 432, team2, 24));
+      parts.push('<line x1="' + margin + '" y1="512" x2="' + (w - margin) + '" y2="512" stroke="rgba(255,255,255,0.14)" stroke-width="1"/>');
     } else {
       const allowChannelHero = channelMark && catKey !== 'motorsport';
       if (allowChannelHero) {
@@ -1041,18 +1059,18 @@ function generateMatchCardSvg(spec = {}) {
   // ── Footer: centred time + channel mark ──
   const footerY = isPoster ? h - 58 : 412;
   if (timeText) {
-    parts.push('<text x="' + (w / 2) + '" y="' + footerY + '" font-family="' + CARD_SANS + '" font-size="14" font-weight="600" letter-spacing="2" fill="rgba(255,255,255,0.68)" text-anchor="middle">' + escapeXml(timeText.toUpperCase()) + '</text>');
+    parts.push('<text x="' + (w / 2) + '" y="' + footerY + '" font-family="' + CARD_SANS + '" font-size="16" font-weight="600" letter-spacing="2" fill="rgba(255,255,255,0.68)" text-anchor="middle">' + escapeXml(timeText.toUpperCase()) + '</text>');
   }
   if (channelName || channelBadge) {
     const label = channelName.toUpperCase();
-    const chipW = (channelBadge ? 20 + 8 : 0) + label.length * 7.8;
+    const chipW = (channelBadge ? 22 + 8 : 0) + label.length * 8.8;
     let px = w - margin - chipW;
     if (channelBadge) {
-      parts.push(badgeImage(channelBadge, px, footerY - 14, 20));
-      px += 28;
+      parts.push(badgeImage(channelBadge, px, footerY - 15, 22));
+      px += 30;
     }
     if (label) {
-      parts.push('<text x="' + px.toFixed(1) + '" y="' + (footerY + 3) + '" font-family="' + CARD_SANS + '" font-size="12.5" font-weight="600" letter-spacing="1.4" fill="rgba(255,255,255,0.58)">' + escapeXml(label) + '</text>');
+      parts.push('<text x="' + px.toFixed(1) + '" y="' + (footerY + 3) + '" font-family="' + CARD_SANS + '" font-size="14" font-weight="600" letter-spacing="1.4" fill="rgba(255,255,255,0.58)">' + escapeXml(label) + '</text>');
     }
   }
 
