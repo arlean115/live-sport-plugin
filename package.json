@@ -1,6 +1,6 @@
 {
   "name": "nuvio-live-sports-plugin",
-  "version": "3.1.2",
+  "version": "3.1.3",
   "description": "The ultimate live sports streaming add-on for Nuvio/Stremio. Scrapes multiple high-speed providers with a zero-lag proxy.",
   "main": "src/index.js",
   "scripts": {
