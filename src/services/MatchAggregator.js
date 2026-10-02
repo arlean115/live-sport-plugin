@@ -226,7 +226,7 @@ class MatchAggregator {
       if (['mls', 'epl', 'la_liga', 'bundesliga', 'serie_a', 'ligue_1', 'ucl', 'uel'].includes(lc)) return 'football';
       if (['formula_1', 'formulaone', 'motogp', 'indycar', 'nascar'].includes(lc)) return 'motorsport';
       if (['mlb', 'npb'].includes(lc)) return 'baseball';
-      if (['nhl', 'khl'].includes(lc)) return 'hockey';
+      if (['nhl', 'khl', 'ice hockey', 'ice_hockey', 'icehockey'].includes(lc)) return 'hockey';
       if (['sports', 'sport'].includes(lc)) return 'other';
       return lc;
     };
