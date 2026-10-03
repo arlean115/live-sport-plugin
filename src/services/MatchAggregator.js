@@ -390,9 +390,44 @@ class MatchAggregator {
     // only reliable success signal; it keeps a total upstream outage from wiping the cache.
     let anyProviderSucceeded = false;
 
+    // ── 12-Hour Replay Cadence ──────────────────────────────────────────────
+    // Replay events (ReplayZone & LiveTV 21-day archives) are static past fixtures.
+    // Re-scraping 21 days of Russian mirrors and archive pages on every server restart
+    // or sync burns significant CPU, network, and RAM. Reuse cached replays if they
+    // were synced within the last 12 hours.
+    const REPLAY_PROVIDERS = new Set(['replayzone', 'livetv']);
+    const REPLAY_SYNC_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours
+
+    const previous = (this.cacheService && typeof this.cacheService.getMatches === 'function')
+      ? this.cacheService.getMatches()
+      : [];
+    const previousReplays = previous.filter(m => m && m.sources && m.sources.some(s => s.source === 'replayzone' || s.source === 'livetv'));
+
+    if (this.lastReplaySync === undefined && this.cacheService && this.cacheService.lastFetchTime) {
+      this.lastReplaySync = this.cacheService.lastFetchTime;
+    }
+
+    const isReplayFresh = previousReplays.length > 0 && this.lastReplaySync && (Date.now() - this.lastReplaySync < REPLAY_SYNC_INTERVAL_MS);
+
+    if (isReplayFresh) {
+      console.log(`[MatchAggregator] Reusing ${previousReplays.length} cached replay events (synced ${Math.round((Date.now() - this.lastReplaySync) / 60000)}m ago; 12h cadence). Skipping LiveTV & ReplayZone scrape.`);
+      processProviderMatches(previousReplays);
+      anyProviderSucceeded = true;
+    } else {
+      this.lastReplaySync = Date.now();
+    }
+
+    const providersToQuery = this.providers.filter(p => {
+      const name = p.sourceName || p.name || '';
+      if (REPLAY_PROVIDERS.has(name) && isReplayFresh) {
+        return false;
+      }
+      return true;
+    });
+
     if (process.env.LOW_MEMORY_MODE === 'true') {
       // Memory-safe sequential fetching (Alwaysdata)
-      for (const p of this.providers) {
+      for (const p of providersToQuery) {
         try {
           const providerMatches = await p.getMatches();
           if (Array.isArray(providerMatches) && providerMatches.length > 0) anyProviderSucceeded = true;
@@ -403,7 +438,7 @@ class MatchAggregator {
       }
     } else {
       // Fast parallel fetching (Render / Local)
-      const results = await Promise.allSettled(this.providers.map(p => p.getMatches()));
+      const results = await Promise.allSettled(providersToQuery.map(p => p.getMatches()));
       results.forEach((promiseResult, index) => {
         if (promiseResult.status === 'fulfilled') {
           if (Array.isArray(promiseResult.value) && promiseResult.value.length > 0) anyProviderSucceeded = true;
