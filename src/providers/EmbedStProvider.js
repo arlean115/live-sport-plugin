@@ -44,7 +44,7 @@ class EmbedStProvider extends BaseProvider {
     if (streams.length === 0 && !embedUrl.includes('sportsembed.su')) {
       try {
         const { safeFetch } = require('../impitClient');
-        const dispatcher = new (require('undici').Agent)({ keepAliveTimeout: 15000, keepAliveMaxTimeout: 30000, connect: { timeoutMs: 15000 } });
+        const dispatcher = new (require('undici').Agent)({ keepAliveTimeout: 15000, keepAliveMaxTimeout: 30000, connect: { timeout: 15000 } });
         const htmlRes = await safeFetch(embedUrl, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
@@ -112,7 +112,7 @@ class EmbedStProvider extends BaseProvider {
           const m3u8Url = await new Promise((resolve) => {
             // Using __dirname ensures it works when bundled by ncc into dist/
             const scriptPath = path.join(__dirname, 'run_wasm_native.js');
-            execFile('node', [scriptPath, user, event, id, embedUrl], { timeoutMs: 15000 }, (error, stdout) => {
+            execFile('node', [scriptPath, user, event, id, embedUrl], { timeout: 15000 }, (error, stdout) => {
               if (error) {
                 console.error(`[${this.name}] Native WASM execution failed:`, error.message);
                 return resolve(null);
