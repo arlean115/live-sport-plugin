@@ -11,6 +11,11 @@ const CHANNEL_LIST_URLS = [
   'https://api.cdnlivetv.is/api/v1/channels/?user=cdnlivetv&plan=free'
 ];
 
+const EVENT_LIST_URLS = [
+  'https://api.cdnlivetv.tv/api/v1/events/sports/?user=cdnlivetv&plan=free',
+  'https://api.cdnlivetv.is/api/v1/events/sports/?user=streamsports99&plan=vip'
+];
+
 const REGION_CODES = {
   us: 'US',
   gb: 'UK',
@@ -65,10 +70,18 @@ class CdnLiveProvider extends BaseProvider {
     this._decoded = new Map(); // playerUrl -> { url, expiresAt }
     
     this.fetchMain = this.circuitBreaker.wrap(`${this.name}_fetchMain`, async () => {
-      const headers = { 'User-Agent': UA };
-      const res = await this.proxyFetch(this.apiUrl, { headers, signal: AbortSignal.timeout(20000) });
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      return await res.json();
+      let lastErr = null;
+      for (const url of EVENT_LIST_URLS) {
+        try {
+          const headers = { 'User-Agent': UA };
+          const res = await this.proxyFetch(url, { headers, signal: AbortSignal.timeout(20000) });
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          return await res.json();
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+      throw lastErr || new Error('no sports events host answered');
     });
 
     this.fetchChannels = this.circuitBreaker.wrap(`${this.name}_channels`, async () => {
