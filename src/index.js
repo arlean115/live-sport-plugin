@@ -266,7 +266,7 @@ const IMAGE_SVG_BUDGET_BYTES = 100 * 1024;
 async function sendRasterizedIfPossible(res, svg) {
   try {
     const sharp = require('sharp');
-    const pngBuffer = await sharp(Buffer.from(svg)).png({ compressionLevel: 9, effort: 7 }).toBuffer();
+    const pngBuffer = await sharp(Buffer.from(svg)).png({ compressionLevel: 9, effort: 1 }).toBuffer();
     res.setHeader('Content-Type', 'image/png');
     res.send(pngBuffer);
   } catch (err) {
@@ -550,7 +550,7 @@ app.get(['/img/match', '/:config/img/match'], async (req, res) => {
   const rasterize = async (svgText) => {
     try {
       const sharp = require('sharp');
-      return await sharp(Buffer.from(svgText)).png({ compressionLevel: 9, effort: 7 }).toBuffer();
+      return await sharp(Buffer.from(svgText)).png({ compressionLevel: 9, effort: 1 }).toBuffer();
     } catch (_) {
       return null;
     }
