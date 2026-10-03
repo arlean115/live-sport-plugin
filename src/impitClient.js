@@ -34,6 +34,26 @@ function getImpit() {
   return _impitInstance;
 }
 
+// -- Periodic impit recycler ---------------------------------------------------
+// The Rust impit instance maintains an internal TLS session cache for every
+// unique domain it contacts. This native heap is invisible to V8's GC and
+// grows steadily over time (hundreds of CDN load-balancer IPs + stream domains).
+// Recycling the singleton every 30 minutes flushes the Rust heap before it
+// can accumulate enough to trigger PM2's --max-memory-restart kill.
+const IMPIT_RECYCLE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+const _recycleTimer = setInterval(() => {
+  if (_impitInstance === null) return; // impit not available, nothing to recycle
+  try {
+    const { Impit } = require('impit');
+    _impitInstance = new Impit({ browser: 'chrome142' });
+    console.log('[impitClient] impit instance recycled (TLS session cache flushed).');
+  } catch (e) {
+    console.warn(`[impitClient] impit recycle failed (${e.message}), keeping old instance.`);
+  }
+}, IMPIT_RECYCLE_INTERVAL_MS);
+// Don't keep the process alive just for the recycler
+if (_recycleTimer.unref) _recycleTimer.unref();
+
 // -- Shared undici keep-alive agent -------------------------------------------
 const _undiciAgent = new Agent({
   connect: { timeout: 20000, rejectUnauthorized: false },
