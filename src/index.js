@@ -562,7 +562,8 @@ app.get(['/img/match', '/:config/img/match'], async (req, res) => {
 
   // Only the delivered form is budgeted. Fall back to the SVG size only when
   // rasterisation is unavailable, because then the SVG is what ships.
-  const deliveredSize = jpeg ? jpeg.length : Buffer.byteLength(svg, 'utf8');
+  const png = jpeg;
+  const deliveredSize = png ? png.length : Buffer.byteLength(svg, 'utf8');
   if (deliveredSize > CARD_BUDGET_BYTES && (badgesToUse.badge1 || badgesToUse.badge2)) {
     badgesToUse = { ...badgesToUse, badge1: null, badge2: null };
     svg = renderCard(badgesToUse);

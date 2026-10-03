@@ -75,11 +75,16 @@ jobs:
 
             echo "==> Dependencies unchanged - skipping npm install (nothing kills workers)."
 
-            echo "==> Building distribution bundle..."
-            npm run build
+            echo "==> Building distribution bundle (atomic staging to prevent SIGSEGV in live workers)..."
+            rm -rf dist_build
+            npx @vercel/ncc build src/index.js -o dist_build --minify -e sharp && npx -y copyfiles -f "src/providers/*.wasm" "src/providers/*.js" dist_build && npx -y copyfiles -u 2 "resolver/src/**/*" dist_build/src && node -e "require('fs').writeFileSync('dist_build/src/package.json', JSON.stringify({type:'module'},null,2))" && npx -y copyfiles -u 1 "public/**/*" dist_build/public && npx -y copyfiles -f "src/data/*.json" dist_build/data && npx -y copyfiles -f "src/data/*.json" dist_build/src/data
+            rm -rf dist_old
+            mv dist dist_old 2>/dev/null || true
+            mv dist_build dist
 
             echo "==> Reloading PM2 cluster (rolling - workers restart one at a time)..."
             pm2 reload nuvio-sports
+            rm -rf dist_old 2>/dev/null || true
 
             echo "==> Deployment complete. Cluster stayed up throughout."
             echo "==> Health:"

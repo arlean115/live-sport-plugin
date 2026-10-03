@@ -28,12 +28,20 @@ function buildProtoHex(embedUrl) {
     ]).toString('hex');
 }
 
+const wasmPath = path.join(__dirname, 'stream-lock.wasm');
+let _wasmModule = null;
+function getWasmModule() {
+  if (!_wasmModule) {
+    const bytes = fs.readFileSync(wasmPath);
+    _wasmModule = new WebAssembly.Module(bytes);
+  }
+  return _wasmModule;
+}
+
 async function extractSportsEmbed(embedUrl) {
     const protoHex = buildProtoHex(embedUrl);
-    const wasmPath = path.join(__dirname, 'stream-lock.wasm');
-    const wasm = fs.readFileSync(wasmPath);
-    const res = await WebAssembly.instantiate(wasm, {});
-    const exports = res.instance.exports;
+    const instance = new WebAssembly.Instance(getWasmModule(), {});
+    const exports = instance.exports;
     const mem = exports.memory;
     
     function getMem() { return new Uint8Array(mem.buffer); }

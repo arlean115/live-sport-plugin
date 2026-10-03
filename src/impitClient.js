@@ -14,12 +14,40 @@
 'use strict';
 
 const { request: undiciRequest, Agent } = require('undici');
+const v8 = require('v8');
+const vm = require('vm');
+
+let _runGc = null;
+try {
+  v8.setFlagsFromString('--expose_gc');
+  _runGc = vm.runInNewContext('gc');
+} catch (_) {}
 
 // -- Singleton -----------------------------------------------------------------
 // undefined  = not yet probed
 // null       = probed and unavailable (native binary missing / bad arch)
 // Impit obj  = ready to use
 let _impitInstance;
+let _impitRequestCount = 0;
+const IMPIT_RECYCLE_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes (aggressively flush native TLS caches)
+const IMPIT_RECYCLE_REQUEST_LIMIT = 250;
+
+function recycleImpit(reason = 'periodic') {
+  if (!_impitInstance) return;
+  try {
+    const { Impit } = require('impit');
+    _impitInstance = new Impit({ browser: 'chrome142' });
+    _impitRequestCount = 0;
+    if (_runGc) {
+      setTimeout(() => {
+        try { _runGc(); } catch (_) {}
+      }, 500);
+    }
+    console.log(`[impitClient] impit recycled (${reason}): native TLS cache flushed.`);
+  } catch (e) {
+    console.warn(`[impitClient] impit recycle failed (${e.message}), keeping current.`);
+  }
+}
 
 function getImpit() {
   if (_impitInstance !== undefined) return _impitInstance;
@@ -38,18 +66,10 @@ function getImpit() {
 // The Rust impit instance maintains an internal TLS session cache for every
 // unique domain it contacts. This native heap is invisible to V8's GC and
 // grows steadily over time (hundreds of CDN load-balancer IPs + stream domains).
-// Recycling the singleton every 30 minutes flushes the Rust heap before it
+// Recycling the singleton every 3 minutes flushes the Rust heap before it
 // can accumulate enough to trigger PM2's --max-memory-restart kill.
-const IMPIT_RECYCLE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const _recycleTimer = setInterval(() => {
-  if (_impitInstance === null) return; // impit not available, nothing to recycle
-  try {
-    const { Impit } = require('impit');
-    _impitInstance = new Impit({ browser: 'chrome142' });
-    console.log('[impitClient] impit instance recycled (TLS session cache flushed).');
-  } catch (e) {
-    console.warn(`[impitClient] impit recycle failed (${e.message}), keeping old instance.`);
-  }
+  recycleImpit('periodic 3m');
 }, IMPIT_RECYCLE_INTERVAL_MS);
 // Don't keep the process alive just for the recycler
 if (_recycleTimer.unref) _recycleTimer.unref();
@@ -87,6 +107,10 @@ async function safeFetch(url, opts = {}) {
 
   // -- Path A: impit ---------------------------------------------------------
   if (impit) {
+    _impitRequestCount++;
+    if (_impitRequestCount >= IMPIT_RECYCLE_REQUEST_LIMIT) {
+      recycleImpit(`request limit ${IMPIT_RECYCLE_REQUEST_LIMIT}`);
+    }
     let lastErr = null;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       // The caller gave up (deadline hit upstream); stop burning its budget.
