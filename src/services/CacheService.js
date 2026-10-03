@@ -18,6 +18,7 @@ class CacheService {
     this.cachedMatches = [];
     this.lastFetchTime = 0;
     this.lastDiskMtime = 0;
+    this.lastStatCheck = 0;
     this.CACHE_TTL = 5 * 60 * 1000; // 5 minutes
     this.cacheFilePath = resolveCacheFile();
     this._loadDiskCache();
@@ -48,7 +49,10 @@ class CacheService {
     if (this.cachedMatches.length === 0) {
       this._loadDiskCache();
     } else {
-      // Periodic or on-demand check if another worker wrote fresh data
+      // Periodic or on-demand check if another worker wrote fresh data (throttled to at most once per second)
+      const now = Date.now();
+      if (this.lastStatCheck && (now - this.lastStatCheck < 1000)) return;
+      this.lastStatCheck = now;
       try {
         if (fs.existsSync(this.cacheFilePath)) {
           const stats = fs.statSync(this.cacheFilePath);

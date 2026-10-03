@@ -112,13 +112,14 @@ function makeProvider(opts = {}) {
 }
 
 describe('DamiTvProvider.getMatches — fixtures', () => {
-  test('keeps the league prefix and the real kickoff for a scheduled fixture', async () => {
+  test('keeps the league as property and the real kickoff for a scheduled fixture', async () => {
     const provider = makeProvider({ feedPayload: feedPayload([fixtureItem()]), allPayload: [] });
     const matches = await provider.getMatches();
 
     expect(matches).toHaveLength(1);
     const m = matches[0];
-    expect(m.title).toBe('MLB - Washington Nationals vs. Detroit Tigers');
+    expect(m.title).toBe('Washington Nationals vs. Detroit Tigers');
+    expect(m.league).toBe('MLB');
     expect(m.category).toBe('baseball');
     expect(m.date).toBe(String((FEED_TS + 3600) * 1000));
     expect(m.status).toBe('upcoming');
@@ -194,9 +195,10 @@ describe('DamiTvProvider.getMatches — rolling-window channels', () => {
 
     expect(matches).toHaveLength(1);
     // The point is the classification, not the sport: a distant kickoff must
-    // keep it out of the 24/7 row and keep its league prefix.
+    // keep it out of the 24/7 row and keep its league property.
     expect(matches[0].category).not.toBe('networks');
-    expect(matches[0].title).toBe('Motorsports - Azerbaijan Grand Prix - Practice 1');
+    expect(matches[0].title).toBe('Azerbaijan Grand Prix - Practice 1');
+    expect(matches[0].league).toBe('Motorsports');
     expect(matches[0].date).toBe(String((FEED_TS + 73963) * 1000));
   });
 

@@ -572,10 +572,11 @@ async function verifyStreams(streams, cacheKey, m3u8Parser, resolveCache, opts =
 // Mint streams for a single source and health-verify them before they enter the
 // cache, so verification runs once per mint instead of on every request.
 async function mintVerifiedSources(src, match, config, cacheKey, opts = {}) {
+  const options = opts || {};
   const resolveCache = container.resolve('streamResolveCache');
   const m3u8Parser = container.resolve('m3u8Parser');
   const minted = await resolveSource(src, match, config);
-  return verifyStreams(minted, cacheKey, m3u8Parser, resolveCache, opts);
+  return verifyStreams(minted, cacheKey, m3u8Parser, resolveCache, options);
 }
 
 // Prewarm: mint tokens for a match's top sources before the user clicks
@@ -591,12 +592,17 @@ async function prewarmMatch(match, config, topN = Number.MAX_SAFE_INTEGER, opts 
     const activeSources = selectSources(match.sources, config || null);
     const targets = activeSources.slice(0, topN);
     if (targets.length === 0) return;
-    console.log(`[Prewarm] minting ${targets.length} sources for ${match.id}`);
-    await Promise.allSettled(targets.map(src => {
-      const key = `${src.source}:${match.id}:${src.id}`;
-      if (resolveCache.get(key)) return Promise.resolve(null);
-      return resolveCache.getOrCreate(key, () => mintVerifiedSources(src, match, config || null, key, opts));
-    }));
+    const options = opts || { skipSpeedProbe: true };
+    console.log(`[Prewarm] minting ${targets.length} sources for ${match.id} (in batches of 3)`);
+    const BATCH_SIZE = 3;
+    for (let i = 0; i < targets.length; i += BATCH_SIZE) {
+      const batch = targets.slice(i, i + BATCH_SIZE);
+      await Promise.allSettled(batch.map(async (src) => {
+        const key = `${src.source}:${match.id}:${src.id}`;
+        if (resolveCache.get(key)) return null;
+        return resolveCache.getOrCreate(key, () => mintVerifiedSources(src, match, config || null, key, options));
+      }));
+    }
   } catch (err) {
     console.warn('[Prewarm] failed:', err.message);
   }

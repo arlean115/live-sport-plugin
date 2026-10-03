@@ -54,8 +54,13 @@ function brokenScheduleProvider() {
 /** A provider whose schedule parsed correctly. */
 function healthyProvider() {
   const p = new DaddyLiveProvider({ circuitBreaker: fakeCB });
+  const tomorrow = new Date(Date.now() + 24 * 3600 * 1000);
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dayHeader = `${dayNames[tomorrow.getUTCDay()]} ${tomorrow.getUTCDate()}th ${monthNames[tomorrow.getUTCMonth()]} ${tomorrow.getUTCFullYear()} - Schedule Time UK GMT`;
+
   p.fetchSchedule = { fire: async () => ({
-    'Sunday 27th Sep 2026 - Schedule Time UK GMT': {
+    [dayHeader]: {
       Soccer: [{
         time: '22:00',
         event: 'Premier League : Team A vs Team B',
