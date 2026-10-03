@@ -154,7 +154,7 @@ class DaddyLiveProvider extends BaseProvider {
       }
     }
 
-    const fetchScheduleFn = async () => {
+    this.fetchSchedule = this.circuitBreaker.wrap(`${this.name}_fetchSchedule`, async () => {
       let lastErr = null;
 
       // Pass 1: Try static JSON schedule across mirror domains (if fresh or in test environment)
@@ -224,11 +224,9 @@ class DaddyLiveProvider extends BaseProvider {
       }
 
       throw lastErr || new Error('All DaddyLive schedule endpoints failed');
-    };
-    fetchScheduleFn.fire = fetchScheduleFn;
-    this.fetchSchedule = fetchScheduleFn;
+    }, { timeout: 30000 });
 
-    const fetchChannelsFn = async () => {
+    this.fetchChannels = this.circuitBreaker.wrap(`${this.name}_fetchChannels`, async () => {
       let lastErr = null;
       for (const base of this.baseDomains) {
         try {
@@ -252,9 +250,7 @@ class DaddyLiveProvider extends BaseProvider {
         }
       }
       throw lastErr || new Error('All DaddyLive 24-7 channels endpoints failed');
-    };
-    fetchChannelsFn.fire = fetchChannelsFn;
-    this.fetchChannels = fetchChannelsFn;
+    }, { timeout: 30000 });
   }
 
   clearCache(sourceId) {

@@ -15,7 +15,7 @@ class CircuitBreakerService {
    * If the function fails 3 times, the breaker opens and trips immediately
    * for the next 5 minutes without hitting the actual endpoint.
    */
-  wrap(name, asyncFunction) {
+  wrap(name, asyncFunction, customOptions = {}) {
     if (this.breakers.has(name)) {
       return this.breakers.get(name);
     }
@@ -23,13 +23,9 @@ class CircuitBreakerService {
     const options = {
       timeout: BREAKER_TIMEOUT_MS, // If function takes longer than this, trigger a failure
       errorThresholdPercentage: 50, // When 50% of requests fail, trip the circuit
-      // Was 5 minutes. That made a short upstream wobble blackout a provider for
-      // the full window even after it recovered (reproduced: 3 failures -> 0 real
-      // calls attempted for 5 min). Still protective, far less user-hostile.
       resetTimeout: 90 * 1000, // After 90s, try again
-      // Was 3. With only 3 samples required, two transient 5xx replies in a burst
-      // were enough to trip. Requiring more evidence avoids spurious blackouts.
-      volumeThreshold: 5 // Wait for at least 5 failures before tripping
+      volumeThreshold: 5, // Wait for at least 5 failures before tripping
+      ...customOptions
     };
 
     const breaker = new CircuitBreaker(asyncFunction, options);
