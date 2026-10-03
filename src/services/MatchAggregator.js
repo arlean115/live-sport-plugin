@@ -323,6 +323,15 @@ class MatchAggregator {
         }
 
         const existing = finalMatches[idx];
+        if (!existing.aliasIds) existing.aliasIds = [];
+        if (match.id && !existing.aliasIds.includes(match.id)) {
+          existing.aliasIds.push(match.id);
+        }
+        if (Array.isArray(match.aliasIds)) {
+          for (const aid of match.aliasIds) {
+            if (!existing.aliasIds.includes(aid)) existing.aliasIds.push(aid);
+          }
+        }
         if (match.sources && Array.isArray(match.sources)) {
           match.sources.forEach(src => {
             if (!existing.sources.find(s => s.id === src.id && s.source === src.source)) {

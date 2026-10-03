@@ -624,7 +624,7 @@ async function handleStream(type, id, config) {
   const matchId = rawId;
 
   if (!matchId) return { streams: [] };
-  const match = matches.find(m => m.id === matchId);
+  const match = cacheService.findMatch(matchId);
 
   if (!match || !match.sources || match.sources.length === 0) {
     return { streams: [] };

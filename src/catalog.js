@@ -1328,11 +1328,29 @@ async function handleMeta(type, id, config) {
 
   const matchId = id.replace('nuvio_sport_', '').split(':')[0];
   const cacheService = container.resolve('cacheService');
-  const matches = cacheService.getMatches();
-  const match = matches.find(m => m.id === matchId);
+  const match = cacheService.findMatch(matchId);
 
   if (!match || !Array.isArray(match.sources) || match.sources.length === 0) {
-    return { meta: null };
+    const slug = matchId.replace(/^[a-z0-9]+_[0-9]+_/, '').replace(/-/g, ' ');
+    const title = slug.replace(/\b\w/g, c => c.toUpperCase()) || 'Sports Event';
+    return {
+      meta: {
+        id: `nuvio_sport_${matchId}`,
+        type: 'tv',
+        name: `⏱️ ${title}`,
+        genres: ['SPORTS'],
+        posterShape: 'landscape',
+        poster: `${BASE_URL}/img/match?title=${encodeURIComponent(title)}`,
+        background: `${BASE_URL}/img/match?title=${encodeURIComponent(title)}`,
+        logo: `${BASE_URL}/logo.png`,
+        description: 'This event may have ended or updated in the schedule. Please refresh the catalog or check back shortly.',
+        behaviorHints: {
+          defaultVideoId: `nuvio_sport_${matchId}`
+        }
+      },
+      cacheMaxAge: 60,
+      staleRevalidate: 120
+    };
   }
 
   // Prewarm while the user is still on the detail page, so the eventual click is

@@ -102,6 +102,41 @@ class CacheService {
     this._saveDiskCache(matches);
   }
 
+  findMatch(matchId) {
+    if (!matchId) return null;
+    const matches = this.getMatches();
+    if (!Array.isArray(matches) || matches.length === 0) return null;
+
+    // 1. Direct primary ID match
+    let found = matches.find(m => m && m.id === matchId);
+    if (found) return found;
+
+    // 2. Alias IDs (merged IDs from other providers during aggregator sync)
+    found = matches.find(m => m && Array.isArray(m.aliasIds) && m.aliasIds.includes(matchId));
+    if (found) return found;
+
+    // 3. Source ID match (any source within the match has this ID)
+    found = matches.find(m => m && Array.isArray(m.sources) && m.sources.some(s => s && (s.id === matchId || s.id === `stream_${matchId}` || String(s.id).includes(matchId))));
+    if (found) return found;
+
+    // 4. Normalized slug match (e.g. "cleveland-guardians" or team names in matchId)
+    const cleanId = matchId.toLowerCase().replace(/^[a-z0-9]+_[0-9]+_/, '').replace(/[^a-z0-9]/g, '');
+    if (cleanId.length > 6) {
+      found = matches.find(m => {
+        if (!m) return false;
+        const mCleanId = (m.id || '').toLowerCase().replace(/^[a-z0-9]+_[0-9]+_/, '').replace(/[^a-z0-9]/g, '');
+        if (mCleanId && (mCleanId.includes(cleanId) || cleanId.includes(mCleanId))) return true;
+        if (m.title) {
+          const cleanTitle = m.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (cleanTitle.includes(cleanId) || cleanId.includes(cleanTitle)) return true;
+        }
+        return false;
+      });
+    }
+
+    return found || null;
+  }
+
   isStale(ttlMs = this.CACHE_TTL) {
     if (Date.now() - this.lastFetchTime > ttlMs) {
       this._loadDiskCache();
