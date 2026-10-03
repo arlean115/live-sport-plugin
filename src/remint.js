@@ -22,6 +22,14 @@ const REMINT_TIMEOUT_MS = 12000;
 const REMINT_MIN_CACHE_MS = 45 * 1000;
 const remintCache = new Map(); // rck -> { freshUrl, expiresAt }
 
+// Periodically clean up expired entries to prevent unbounded memory growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of remintCache.entries()) {
+    if (now > v.expiresAt) remintCache.delete(k);
+  }
+}, 60 * 1000).unref();
+
 // ─── Provider-Specific Token Mechanisms ──────────────────────────────────────
 // Each provider structures and places its authorization tokens differently:
 // 1. WatchFooty: Token AND expiry timestamp in URL path:
