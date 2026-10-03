@@ -217,18 +217,15 @@ function unpack(input) {
   if (!Number.isInteger(radix) || radix < 2 || radix > 36) return null;
   if (!Number.isInteger(count) || count < 0) return null;
 
-  // Reproduce the packer loop exactly:
-  //   while (c--) if (k[c]) p = p.replace(new RegExp('\\b'+c.toString(a)+'\\b','g'), k[c])
-  let out = payload;
+  // Single-pass dictionary substitution: O(1) per token rather than O(N) regex compilation passes
+  const dict = new Map();
   for (let c = count - 1; c >= 0; c -= 1) {
     const word = words[c];
-    if (!word) continue;
-    const token = c.toString(radix);
-    const pattern = new RegExp('\\b' + token + '\\b', 'g');
-    out = out.replace(pattern, word);
+    if (word) {
+      dict.set(c.toString(radix), word);
+    }
   }
-
-  return out;
+  return payload.replace(/\b\w+\b/g, (token) => dict.get(token) || token);
 }
 
 module.exports = { unpack };
