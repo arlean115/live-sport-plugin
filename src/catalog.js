@@ -818,7 +818,9 @@ async function buildReplayHubMeta(id, config = {}) {
         behaviorHints: {
           defaultVideoId: videos.length > 0 ? videos[0].id : undefined
         }
-      }
+      },
+      cacheMaxAge: 1800,
+      staleRevalidate: 3600
     };
   }
 
@@ -931,7 +933,9 @@ async function buildReplayHubMeta(id, config = {}) {
       behaviorHints: {
         defaultVideoId: videos.length > 0 ? videos[0].id : undefined
       }
-    }
+    },
+    cacheMaxAge: 1800,
+    staleRevalidate: 3600
   };
 }
 
@@ -1056,7 +1060,7 @@ async function handleReplayCatalog(id, extra, config, reqType = 'tv') {
   const page = (skip > 0 || total > pageSize) ? matches.slice(skip, skip + pageSize) : matches;
 
   const metas = page.map(m => mapMatchToMetaPreview(m, config, reqType));
-  return { metas };
+  return { metas, cacheMaxAge: 1800, staleRevalidate: 3600 };
 }
 
 async function handleCatalog(type, id, extra, config) {
@@ -1238,7 +1242,7 @@ async function handleCatalog(type, id, extra, config) {
       };
     });
 
-    return { metas: [...hubMetas, ...dateMetas] };
+    return { metas: [...hubMetas, ...dateMetas], cacheMaxAge: 1800, staleRevalidate: 3600 };
   }
 
   let metas = filteredMatches.map(m => mapMatchToMetaPreview(m, conf, type));
@@ -1278,7 +1282,27 @@ async function handleCatalog(type, id, extra, config) {
     metas = metas.slice(skip, skip + PAGE_SIZE);
   }
 
-  return { metas };
+  let cacheTtl = 180; // default 3 minutes
+  let staleTtl = 600; // 10 minutes
+
+  if (extra && extra.search) {
+    cacheTtl = 60;
+    staleTtl = 120;
+  } else if (categoryMatch === 'live') {
+    cacheTtl = 120; // 2 minutes for live matches
+    staleTtl = 300; // 5 minutes SWR
+  } else if (categoryMatch === 'upcoming') {
+    cacheTtl = 300; // 5 minutes for upcoming
+    staleTtl = 600;
+  } else if (categoryMatch === 'networks') {
+    cacheTtl = 900; // 15 minutes for 24/7 channels
+    staleTtl = 1800;
+  } else if (categoryMatch === 'replays') {
+    cacheTtl = 1800; // 30 minutes for replays
+    staleTtl = 3600;
+  }
+
+  return { metas, cacheMaxAge: cacheTtl, staleRevalidate: staleTtl, staleError: 600 };
 }
 
 async function handleMeta(type, id, config) {
@@ -1325,7 +1349,12 @@ async function handleMeta(type, id, config) {
   } catch (_) {}
 
   const effectiveType = type === 'series' ? 'series' : 'tv';
-  return { meta: mapMatchToMetaPreview(match, config || {}, effectiveType) };
+  const live = isMatchLive(match);
+  return {
+    meta: mapMatchToMetaPreview(match, config || {}, effectiveType),
+    cacheMaxAge: live ? 120 : 600,
+    staleRevalidate: live ? 300 : 1800
+  };
 }
 
 module.exports = {

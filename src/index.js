@@ -1030,6 +1030,10 @@ app.get([
     const result = await handleCatalog(type, id, extra, config);
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Access-Control-Allow-Origin', '*');
+    if (result && Number.isInteger(result.cacheMaxAge)) {
+      const swr = Number.isInteger(result.staleRevalidate) ? result.staleRevalidate : result.cacheMaxAge * 2;
+      res.setHeader('Cache-Control', `max-age=${result.cacheMaxAge}, stale-while-revalidate=${swr}, public`);
+    }
     return res.json(result);
   }
   next();
