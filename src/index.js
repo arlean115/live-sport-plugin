@@ -266,9 +266,9 @@ const IMAGE_SVG_BUDGET_BYTES = 100 * 1024;
 async function sendRasterizedIfPossible(res, svg) {
   try {
     const sharp = require('sharp');
-    const pngBuffer = await sharp(Buffer.from(svg)).png({ compressionLevel: 9, effort: 1 }).toBuffer();
-    res.setHeader('Content-Type', 'image/png');
-    res.send(pngBuffer);
+    const jpegBuffer = await sharp(Buffer.from(svg)).jpeg({ quality: 85 }).toBuffer();
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.send(jpegBuffer);
   } catch (err) {
     res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
     res.send(svg);
@@ -362,7 +362,7 @@ app.get(['/img/match', '/:config/img/match'], async (req, res) => {
   const cached = matchCardMemo.get(memoKey);
   if (cached) {
     if (Buffer.isBuffer(cached)) {
-      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Type', 'image/jpeg');
     } else {
       res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
     }
@@ -550,7 +550,7 @@ app.get(['/img/match', '/:config/img/match'], async (req, res) => {
   const rasterize = async (svgText) => {
     try {
       const sharp = require('sharp');
-      return await sharp(Buffer.from(svgText)).png({ compressionLevel: 9, effort: 1 }).toBuffer();
+      return await sharp(Buffer.from(svgText)).jpeg({ quality: 85 }).toBuffer();
     } catch (_) {
       return null;
     }
@@ -558,15 +558,15 @@ app.get(['/img/match', '/:config/img/match'], async (req, res) => {
 
   let badgesToUse = badges;
   let svg = renderCard(badgesToUse);
-  let png = await rasterize(svg);
+  let jpeg = await rasterize(svg);
 
   // Only the delivered form is budgeted. Fall back to the SVG size only when
   // rasterisation is unavailable, because then the SVG is what ships.
-  const deliveredSize = png ? png.length : Buffer.byteLength(svg, 'utf8');
+  const deliveredSize = jpeg ? jpeg.length : Buffer.byteLength(svg, 'utf8');
   if (deliveredSize > CARD_BUDGET_BYTES && (badgesToUse.badge1 || badgesToUse.badge2)) {
     badgesToUse = { ...badgesToUse, badge1: null, badge2: null };
     svg = renderCard(badgesToUse);
-    png = await rasterize(svg);
+    jpeg = await rasterize(svg);
   }
 
   // Don't memoize a logo-less card when team names are present — it just means
@@ -581,10 +581,10 @@ app.get(['/img/match', '/:config/img/match'], async (req, res) => {
     if (matchCardMemo.size >= MATCH_CARD_MEMO_MAX) matchCardMemo.clear();
   }
 
-  if (png) {
-    if (shouldMemo) matchCardMemo.set(memoKey, png);
-    res.setHeader('Content-Type', 'image/png');
-    return res.send(png);
+  if (jpeg) {
+    if (shouldMemo) matchCardMemo.set(memoKey, jpeg);
+    res.setHeader('Content-Type', 'image/jpeg');
+    return res.send(jpeg);
   }
   if (shouldMemo) matchCardMemo.set(memoKey, svg);
   res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
