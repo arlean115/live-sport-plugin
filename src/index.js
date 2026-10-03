@@ -966,6 +966,7 @@ app.get('/:config?/manifest.json', (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', '*');
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
   res.send(newManifest);
 });
 
