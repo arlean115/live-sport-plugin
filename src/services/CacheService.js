@@ -27,18 +27,37 @@ class CacheService {
   // (s.score, s._source, s.name, s.url, behaviorHints), so a shallow array copy
   // would leak state between requests. Structured clone is not available for
   // these plain JSON shapes on every runtime, so clone explicitly.
+  _cloneMatch(m) {
+    if (!m || typeof m !== 'object') return null;
+    const c = { ...m };
+    if (Array.isArray(m.sources)) {
+      c.sources = m.sources.map((s) => (s && typeof s === 'object'
+        ? { ...s, behaviorHints: s.behaviorHints ? { ...s.behaviorHints } : s.behaviorHints }
+        : s));
+    }
+    if (m.team1 && typeof m.team1 === 'object') c.team1 = { ...m.team1 };
+    if (m.team2 && typeof m.team2 === 'object') c.team2 = { ...m.team2 };
+    return c;
+  }
+
   _clone(matches) {
-    return (matches || []).map((m) => {
-      const c = { ...m };
-      if (Array.isArray(m.sources)) {
-        c.sources = m.sources.map((s) => (s && typeof s === 'object'
-          ? { ...s, behaviorHints: s.behaviorHints ? { ...s.behaviorHints } : s.behaviorHints }
-          : s));
-      }
-      if (m.team1 && typeof m.team1 === 'object') c.team1 = { ...m.team1 };
-      if (m.team2 && typeof m.team2 === 'object') c.team2 = { ...m.team2 };
-      return c;
-    });
+    return (matches || []).map((m) => this._cloneMatch(m)).filter(Boolean);
+  }
+
+  _ensureLoaded() {
+    if (this.cachedMatches.length === 0) {
+      this._loadDiskCache();
+    } else {
+      // Periodic or on-demand check if another worker wrote fresh data
+      try {
+        if (fs.existsSync(this.cacheFilePath)) {
+          const stats = fs.statSync(this.cacheFilePath);
+          if (stats.mtimeMs > this.lastDiskMtime) {
+            this._loadDiskCache();
+          }
+        }
+      } catch (_) {}
+    }
   }
 
   _loadDiskCache() {
@@ -80,19 +99,7 @@ class CacheService {
   }
 
   getMatches() {
-    if (this.cachedMatches.length === 0) {
-      this._loadDiskCache();
-    } else {
-      // Periodic or on-demand check if another worker wrote fresh data
-      try {
-        if (fs.existsSync(this.cacheFilePath)) {
-          const stats = fs.statSync(this.cacheFilePath);
-          if (stats.mtimeMs > this.lastDiskMtime) {
-            this._loadDiskCache();
-          }
-        }
-      } catch (_) {}
-    }
+    this._ensureLoaded();
     return this._clone(this.cachedMatches);
   }
 
@@ -104,20 +111,21 @@ class CacheService {
 
   findMatch(matchId) {
     if (!matchId) return null;
-    const matches = this.getMatches();
+    this._ensureLoaded();
+    const matches = this.cachedMatches;
     if (!Array.isArray(matches) || matches.length === 0) return null;
 
     // 1. Direct primary ID match
     let found = matches.find(m => m && m.id === matchId);
-    if (found) return found;
+    if (found) return this._cloneMatch(found);
 
     // 2. Alias IDs (merged IDs from other providers during aggregator sync)
     found = matches.find(m => m && Array.isArray(m.aliasIds) && m.aliasIds.includes(matchId));
-    if (found) return found;
+    if (found) return this._cloneMatch(found);
 
     // 3. Source ID match (any source within the match has this ID)
     found = matches.find(m => m && Array.isArray(m.sources) && m.sources.some(s => s && (s.id === matchId || s.id === `stream_${matchId}` || String(s.id).includes(matchId))));
-    if (found) return found;
+    if (found) return this._cloneMatch(found);
 
     // 4. Normalized slug match (e.g. "cleveland-guardians" or team names in matchId)
     const cleanId = matchId.toLowerCase().replace(/^[a-z0-9]+_[0-9]+_/, '').replace(/[^a-z0-9]/g, '');
@@ -134,7 +142,7 @@ class CacheService {
       });
     }
 
-    return found || null;
+    return found ? this._cloneMatch(found) : null;
   }
 
   isStale(ttlMs = this.CACHE_TTL) {

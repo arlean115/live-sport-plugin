@@ -609,7 +609,6 @@ async function handleStream(type, id, config) {
   }
 
   const cacheService = container.resolve('cacheService');
-  const matches = cacheService.getMatches();
   let rawId = id.replace('nuvio_sport_', '');
   let episodeIndex = null;
   let isHubEpisode = false;
