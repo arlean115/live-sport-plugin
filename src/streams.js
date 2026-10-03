@@ -554,7 +554,7 @@ async function verifyStreams(streams, cacheKey, m3u8Parser, resolveCache, opts =
         if (parsedQuality.bitrateTag) s.bitrate = parsedQuality.bitrateTag;
       }
 
-      if (ENABLE_SPEED_PROBE) {
+      if (ENABLE_SPEED_PROBE && !opts.skipSpeedProbe) {
         await measureStreamSpeed(s, targetUrl, bodySample, referer, origin, m3u8Parser, verifyDeadlineAt);
       }
 
